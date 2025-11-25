@@ -1,0 +1,5 @@
+-Iinclude
+-I/usr/local/cuda/include
+--cuda-path=/usr/local/cuda
+-x
+cuda

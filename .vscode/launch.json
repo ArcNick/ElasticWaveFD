@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0", 
+    "configurations": [
+        {
+            "name": "CUDA C++ Debug",
+            "type": "cuda-gdb",
+            "request": "launch", 
+            "program": "${workspaceFolder}/bin/main_debug",
+            "stopAtEntry": false,
+            "cwd": "${workspaceFolder}",
+            "environment": [{"name": "CUDA_DEBUGGER_SOFTWARE_PREEMPTION", "value": "1"}],
+            "miDebuggerPath": "/usr/local/cuda/bin/cuda-gdb",
+            "preLaunchTask": "nvcc_build"
+        }
+    ]
+}
