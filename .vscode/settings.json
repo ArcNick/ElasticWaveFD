@@ -56,7 +56,13 @@
         "variant": "cpp",
         "codecvt": "cpp",
         "iostream": "cpp",
-        "fstream": "cpp"
+        "fstream": "cpp",
+        "__config": "cpp",
+        "cfloat": "cpp",
+        "cinttypes": "cpp",
+        "__threading_support": "cpp",
+        "version": "cpp",
+        "__target_macros": "cpp"
     },
     "python-envs.defaultEnvManager": "ms-python.python:conda",
     "python-envs.defaultPackageManager": "ms-python.python:conda",

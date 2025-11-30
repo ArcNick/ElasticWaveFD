@@ -4,7 +4,7 @@
 #include <cuda_runtime.h>
 #include <array>
 
-class Grid_Model {
+class Grid_Model_Thomsen {
 public:
     float *vp0, *vs0, *rho;
     float *epsilon, *delta, *gamma;
@@ -30,12 +30,41 @@ public:
         };
     }
 
-    Grid_Model(int nx, int nz, bool mem_location);
-    ~Grid_Model();
+    Grid_Model_Thomsen(int nx, int nz, bool mem_location);
+    ~Grid_Model_Thomsen();
 
     void read(const std::array<const char *, 6> &files);
-    void memcpy_to_device_from(const Grid_Model &rhs);
+    void memcpy_to_device_from(const Grid_Model_Thomsen &rhs);
     void calc_stiffness();
+};
+
+class Grid_Model {
+public:
+    float *vp0, *vs0, *rho;
+    float *C11, *C13, *C33, *C55;
+
+    int nx, nz;
+    bool mem_location;  // 0 : host, 1 : device, default : device
+
+    struct View {
+        float *vp0, *vs0, *rho;
+        float *C11, *C13, *C33, *C55;
+        int nx, nz;
+        bool mem_location;
+    };
+    View view() {
+        return (View){
+            vp0, vs0, rho, 
+            C11, C13, C33, C55, 
+            nx, nz, mem_location
+        };
+    }
+
+    Grid_Model(int nx, int nz);
+    ~Grid_Model();
+
+    void read(const std::array<const char *, 7> &files);
+    void memcpy_to_device_from(const Grid_Model &rhs);
 };
 
 #endif

@@ -27,7 +27,6 @@ __global__ void update_stress(
     float C11 = C11(ix, iz);
     float C13 = C13(ix, iz);
     float C33 = C33(ix, iz);
-    // float C44 = C44(ix, iz);
     
     float dvx_dx = (ix <= 3 ? 0 : Dx_half_8th(gc.vx, ix, iz, nx - 1, dx));
     float dvz_dz = (iz <= 3 ? 0 : Dz_half_8th(gc.vz, ix, iz, nx, dz));
@@ -54,13 +53,13 @@ __global__ void update_stress(
 
     SX(ix, iz) += dt * (C11 * dvx_dx + C13 * dvz_dz);
     SZ(ix, iz) += dt * (C13 * dvx_dx + C33 * dvz_dz);
-
+    
     // txz : (nx-1) × (nz-1)
-    float C44_half = 0.25 * (
-        C44(ix, iz) + C44(ix + 1, iz) + 
-        C44(ix, iz + 1) + C44(ix + 1, iz + 1)
+    float C55_half = 0.25 * (
+        C55(ix, iz) + C55(ix + 1, iz) + 
+        C55(ix, iz + 1) + C55(ix + 1, iz + 1)
     );
-    TXZ(ix, iz) += dt * C44_half * (dvz_dx + dvx_dz);
+    TXZ(ix, iz) += dt * C55_half * (dvz_dx + dvx_dz);
 }
 
 __global__ void update_velocity(
@@ -116,12 +115,10 @@ __global__ void apply_free_boundary(Grid_Core::View gc) {
     if (3 <= idx && idx <= nx - 5) {
         SX(idx, 3) = SX(idx, nz - 5) = 0;
         SZ(idx, 3) = SZ(idx, nz - 5) = 0;
-        VZ(idx, 4) = VZ(idx, nz - 5) = 0;
     }
 
     // x 在半网格点上
     if (4 <= idx && idx <= nx - 5) {
-        VX(idx, 3) = VX(idx, nz - 5) = 0;
         TXZ(idx, 4) = TXZ(idx, nz - 5) = 0;
     }
 
@@ -129,12 +126,10 @@ __global__ void apply_free_boundary(Grid_Core::View gc) {
     if (3 <= idx && idx <= nz - 5) {
         SX(3, idx) = SX(nx - 5, idx) = 0;
         SZ(3, idx) = SZ(nx - 5, idx) = 0;
-        VX(4, idx) = VZ(nx - 5, idx) = 0;
     }
 
     // z 在半网格点上
     if (4 <= idx && idx <= nz - 5) {
-        VZ(3, idx) = VZ(nx - 5, idx) = 0;
         TXZ(4, idx) = TXZ(nx - 5, idx) = 0;
     }
 }

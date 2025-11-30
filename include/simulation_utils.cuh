@@ -5,8 +5,7 @@
 #include "grid_core.cuh"
 
 float *ricker_wave(int nt, float dt, float fpeak);
-
-__global__ void thomsen_to_stiffness(Grid_Model::View gm);
+__global__ void thomsen_to_stiffness(Grid_Model_Thomsen::View gm);
 
 // idx = iz * nx + ix
 #define VP(ix, iz) ((gm).vp0[(iz) * (gm).nx + (ix)])
@@ -18,8 +17,7 @@ __global__ void thomsen_to_stiffness(Grid_Model::View gm);
 #define C11(ix, iz) ((gm).C11[(iz) * (gm).nx + (ix)])
 #define C13(ix, iz) ((gm).C13[(iz) * (gm).nx + (ix)])
 #define C33(ix, iz) ((gm).C33[(iz) * (gm).nx + (ix)])
-#define C44(ix, iz) ((gm).C44[(iz) * (gm).nx + (ix)])
-#define C66(ix, iz) ((gm).C66[(iz) * (gm).nx + (ix)])
+#define C55(ix, iz) ((gm).C55[(iz) * (gm).nx + (ix)])
 
 #define VX(ix, iz) ((gc).vx[(iz) * ((gc).nx - 1) + (ix)])
 #define VZ(ix, iz) ((gc).vz[(iz) * (gc).nx + (ix)])

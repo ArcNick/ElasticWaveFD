@@ -8,15 +8,15 @@ int main() {
     Params par;
     par.read("models/params.txt");
     
-    Grid_Model gm_readin(par.nx, par.nz, HOST_MEM);
-    Grid_Model gm_device(par.nx, par.nz, DEVICE_MEM);
-    gm_readin.read({
+    Grid_Model gm_device(par.nx, par.nz);
+    gm_device.read({
         "models/vp.bin", 
         "models/vs.bin", 
         "models/rho.bin",
-        "models/epsilon.bin", 
-        "models/delta.bin", 
-        "models/gamma.bin"
+        "models/C11.bin", 
+        "models/C13.bin", 
+        "models/C33.bin", 
+        "models/C55.bin"
     });
     
     Grid_Core gc_readin(par.nx, par.nz, HOST_MEM);
@@ -41,16 +41,9 @@ int main() {
     float ppw = 1900.0f / (2.1 * par.fpeak * par.dx);
     printf("PPW: 最小ppw = 7, 实际ppw = %f\n", ppw);
     
-    // 迁移CPU上模型到GPU上
-    gm_device.memcpy_to_device_from(gm_readin);
-
     // 初始化核心计算网格
     Grid_Core gc_host(par.nx, par.nz, HOST_MEM);
     Grid_Core gc_device(par.nx, par.nz, DEVICE_MEM);
-
-    // 计算刚度参数
-    gm_device.calc_stiffness();
-    cudaDeviceSynchronize();
 
     // 生成雷克子波
     float *wl = ricker_wave(par.nt, par.dt, par.fpeak);
@@ -74,7 +67,7 @@ int main() {
         
         // ψ_stress 更新
         cpml_update_psi_stress<<<gridSize, blockSize>>>(
-            gc_device.view(), gm_device.view(), cpml.view(), 
+            gc_device.view(), cpml.view(), 
             par.dx, par.dz, par.dt
         );
         cudaDeviceSynchronize();
@@ -88,7 +81,7 @@ int main() {
         
         // ψ_vel 更新
         cpml_update_psi_vel<<<gridSize, blockSize>>>(
-            gc_device.view(), gm_device.view(), cpml.view(), 
+            gc_device.view(), cpml.view(), 
             par.dx, par.dz, par.dt
         );
 
