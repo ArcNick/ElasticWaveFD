@@ -1,8 +1,8 @@
 #ifndef CPML_CUH
 #define CPML_CUH
 
+#include "grid_core.cuh"
 #include "params.cuh"
-#include <cmath>
 
 #define PVX_X(ix, iz) (cpml.psi_vx_x[(iz) * (cpml.nx - 1) + (ix)])
 #define PVX_Z(ix, iz) (cpml.psi_vx_z[(iz) * (cpml.nx - 1) + (ix)])
@@ -17,7 +17,7 @@
 
 class Cpml {
 public:
-    int thickness;                  // CPML层厚度（网格点数）    
+    int thickness;                  // CPML层厚度（网格点数）
     float N;                        // 阻尼剖面指数
     float cp_max;                   // 最大纵波波速
     float L;                        // CPML层厚度

@@ -3,8 +3,9 @@
 
 #include "grid_model.cuh"
 #include "grid_core.cuh"
+#include <memory>
 
-float *ricker_wave(int nt, float dt, float fpeak);
+std::unique_ptr<float[]> ricker_wavelet(int nt, float dt, float fpeak);
 __global__ void thomsen_to_stiffness(Grid_Model_Thomsen::View gm);
 
 // idx = iz * nx + ix
@@ -25,7 +26,9 @@ __global__ void thomsen_to_stiffness(Grid_Model_Thomsen::View gm);
 #define SZ(ix, iz) ((gc).sz[(iz) * (gc).nx + (ix)])
 #define TXZ(ix, iz) ((gc).txz[(iz) * ((gc).nx - 1) + (ix)])
 
-#define HOST_MEM 0
-#define DEVICE_MEM 1
+enum MemoryType {
+    HOST_MEM = 0,
+    DEVICE_MEM = 1
+};
 
 #endif

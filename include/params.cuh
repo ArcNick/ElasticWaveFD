@@ -10,7 +10,7 @@ public:
     float dx, dz;       // 网格步长
     int nt;             // 模拟时间步数
     float dt;           // 模拟时间步长
-    int posx, posz;     // 炮点位置         
+    int posx, posz;     // 炮点位置
     int snapshot;       // 波场快照间隔
     
     struct View {
@@ -31,7 +31,7 @@ public:
 
     Params() : fpeak(0), nx(0), nz(0), dx(0), dz(0), nt(0), dt(0),
                posx(0), posz(0), snapshot(0) {};
-    ~Params() = default;    
+    ~Params() = default;
     void read(const char *file);
 };
 

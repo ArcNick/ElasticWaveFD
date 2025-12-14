@@ -6,6 +6,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing as mp
 
 # 全局设置，避免重复计算
+GAIN = 1e6
 STRESS_RANGE = (-0.02, 0.02)      # 应力分量范围
 STRESS_TXZ_RANGE = (-0.005, 0.005)  # txz分量单独的范围
 VELOCITY_RANGE = (-2e-9, 2e-9)    # 速度分量范围
@@ -51,6 +52,7 @@ def process_single_file(args):
     try:
         # 读取二进制文件
         data = np.fromfile(bin_file, dtype=np.float32)
+        data = data.astype(np.float64) / GAIN
         if len(data) != expected_shape[0] * expected_shape[1]:
             return f"警告: 数据大小不匹配，跳过 {bin_file.name}"
             

@@ -1,4 +1,5 @@
 #include "common.cuh"
+#include <memory>
 #include <cmath>
 #include <cstdio>
 #include <array>
@@ -396,9 +397,9 @@ void Grid_Core::memcpy_to_host_from(const Grid_Core &rhs) {
     cudaMemcpy(txz, rhs.txz, (nx - 1) * (nz - 1) * sizeof(float), cudaMemcpyDeviceToHost);
 }
 
-float *ricker_wave(int nt, float dt, float fpeak) {
-    float *wavelet = new float[nt]();
-    float T = 1.0 / fpeak;
+std::unique_ptr<float[]> ricker_wavelet(int nt, float dt, float fpeak) {
+    std::unique_ptr<float[]> wavelet = std::make_unique<float[]>(nt);
+    float T = 1.3 / fpeak;
     for (int it = 0; it < nt; it++) {
         float t = it * dt - T;
         float temp = M_PI * fpeak * t;

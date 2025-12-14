@@ -3,6 +3,8 @@
 #include "update.cuh"
 #include "output.cuh"
 #include "differentiate.cuh"
+#include <memory>
+const float gain = 1e6;
 
 int main() {
     Params par;
@@ -46,7 +48,7 @@ int main() {
     Grid_Core gc_device(par.nx, par.nz, DEVICE_MEM);
 
     // 生成雷克子波
-    float *wl = ricker_wave(par.nt, par.dt, par.fpeak);
+    std::unique_ptr<float[]> wl = ricker_wavelet(par.nt, par.dt, par.fpeak);
     
     Snapshot sshot(gc_host);
     for (int it = 0; it < par.nt; it++) {
@@ -61,7 +63,7 @@ int main() {
 
         // 加入震源
         apply_source<<<1, 1>>>(
-            gc_device.view(), wl[it], par.posx, par.posz
+            gc_device.view(), wl[it] * gain, par.posx, par.posz
         );
         cudaDeviceSynchronize();
         
@@ -103,7 +105,4 @@ int main() {
     }
     printf("\r%%100.00 finished.\n");
     fflush(stdout);
-    
-    delete[] wl;
-    wl = nullptr;
 }
