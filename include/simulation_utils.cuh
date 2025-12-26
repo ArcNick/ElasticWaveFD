@@ -20,11 +20,17 @@ __global__ void thomsen_to_stiffness(Grid_Model_Thomsen::View gm);
 #define C33(ix, iz) ((gm).C33[(iz) * (gm).nx + (ix)])
 #define C55(ix, iz) ((gm).C55[(iz) * (gm).nx + (ix)])
 
-#define VX(ix, iz) ((gc).vx[(iz) * ((gc).nx - 1) + (ix)])
-#define VZ(ix, iz) ((gc).vz[(iz) * (gc).nx + (ix)])
-#define SX(ix, iz) ((gc).sx[(iz) * (gc).nx + (ix)])
-#define SZ(ix, iz) ((gc).sz[(iz) * (gc).nx + (ix)])
-#define TXZ(ix, iz) ((gc).txz[(iz) * ((gc).nx - 1) + (ix)])
+#define VX_C(ix, iz) ((gc).vx[cur][(iz) * ((gc).nx - 1) + (ix)])
+#define VZ_C(ix, iz) ((gc).vz[cur][(iz) * (gc).nx + (ix)])
+#define SX_C(ix, iz) ((gc).sx[cur][(iz) * (gc).nx + (ix)])
+#define SZ_C(ix, iz) ((gc).sz[cur][(iz) * (gc).nx + (ix)])
+#define TXZ_C(ix, iz) ((gc).txz[cur][(iz) * ((gc).nx - 1) + (ix)])
+
+#define VX_P(ix, iz) ((gc).vx[pre][(iz) * ((gc).nx - 1) + (ix)])
+#define VZ_P(ix, iz) ((gc).vz[pre][(iz) * (gc).nx + (ix)])
+#define SX_P(ix, iz) ((gc).sx[pre][(iz) * (gc).nx + (ix)])
+#define SZ_P(ix, iz) ((gc).sz[pre][(iz) * (gc).nx + (ix)])
+#define TXZ_P(ix, iz) ((gc).txz[pre][(iz) * ((gc).nx - 1) + (ix)])
 
 enum MemoryType {
     HOST_MEM = 0,

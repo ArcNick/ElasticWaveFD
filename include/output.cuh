@@ -9,11 +9,10 @@
 namespace fs = std::filesystem;
 
 struct Array_Info {
-    float* data;
+    float *data[2];
     int lenx, lenz;
     std::string name;
-    Array_Info(float* d, int lx, int lz, const std::string &n) 
-        : data(d), lenx(lx), lenz(lz), name(n) {}
+    Array_Info(float* const d[2], int lx, int lz, const std::string &n);
     ~Array_Info() = default;
 };
 
@@ -26,7 +25,7 @@ public:
     Snapshot(const Grid_Core &g);
     ~Snapshot() = default;
 
-    void output(int it, float dt);
+    void output(int it, float dt, int cur);
 };
 
 #endif

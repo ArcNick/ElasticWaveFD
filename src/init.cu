@@ -319,68 +319,127 @@ void Grid_Model::read(const std::array<const char *, 7> &files) {
 Grid_Core::Grid_Core(int nx, int nz, bool mem_location) 
     : nx(nx), nz(nz), mem_location(mem_location) {
     if (mem_location == HOST_MEM) {
-        vx = new float[(nx - 1) * nz]();
-        vz = new float[nx * (nz - 1)]();
-        sx = new float[nx * nz]();
-        sz = new float[nx * nz]();
-        txz = new float[(nx - 1) * (nz - 1)]();
-    } else {
-        cudaMalloc((void**)&vx, (nx - 1) * nz * sizeof(float));
-        cudaMalloc((void**)&vz, nx * (nz - 1) * sizeof(float));
-        cudaMalloc((void**)&sx, nx * nz * sizeof(float));
-        cudaMalloc((void**)&sz, nx * nz * sizeof(float));
-        cudaMalloc((void**)&txz, (nx - 1) * (nz - 1) * sizeof(float));
+        vx[0] = new float[(nx - 1) * nz]();
+        vx[1] = new float[(nx - 1) * nz]();
 
-        cudaMemset(vx, 0, (nx - 1) * nz * sizeof(float));
-        cudaMemset(vz, 0, nx * (nz - 1) * sizeof(float));
-        cudaMemset(sx, 0, nx * nz * sizeof(float));
-        cudaMemset(sz, 0, nx * nz * sizeof(float));
-        cudaMemset(txz, 0, (nx - 1) * (nz - 1) * sizeof(float));
+        vz[0] = new float[nx * (nz - 1)]();
+        vz[1] = new float[nx * (nz - 1)]();
+
+        sx[0] = new float[nx * nz]();
+        sx[1] = new float[nx * nz]();
+
+        sz[0] = new float[nx * nz]();
+        sz[1] = new float[nx * nz]();
+
+        txz[0] = new float[(nx - 1) * (nz - 1)]();
+        txz[1] = new float[(nx - 1) * (nz - 1)]();
+    }  else {
+        cudaMalloc((void**)&vx[0], (nx - 1) * nz * sizeof(float));
+        cudaMalloc((void**)&vx[1], (nx - 1) * nz * sizeof(float));
+        cudaMalloc((void**)&vz[0], nx * (nz - 1) * sizeof(float));
+        cudaMalloc((void**)&vz[1], nx * (nz - 1) * sizeof(float));
+        cudaMalloc((void**)&sx[0], nx * nz * sizeof(float));
+        cudaMalloc((void**)&sx[1], nx * nz * sizeof(float));
+        cudaMalloc((void**)&sz[0], nx * nz * sizeof(float));
+        cudaMalloc((void**)&sz[1], nx * nz * sizeof(float));
+        cudaMalloc((void**)&txz[0], (nx - 1) * (nz - 1) * sizeof(float));
+        cudaMalloc((void**)&txz[1], (nx - 1) * (nz - 1) * sizeof(float));
+
+        cudaMemset(vx[0], 0, (nx - 1) * nz * sizeof(float));
+        cudaMemset(vx[1], 0, (nx - 1) * nz * sizeof(float));
+        cudaMemset(vz[0], 0, nx * (nz - 1) * sizeof(float));
+        cudaMemset(vz[1], 0, nx * (nz - 1) * sizeof(float));
+        cudaMemset(sx[0], 0, nx * nz * sizeof(float));
+        cudaMemset(sx[1], 0, nx * nz * sizeof(float));
+        cudaMemset(sz[0], 0, nx * nz * sizeof(float));
+        cudaMemset(sz[1], 0, nx * nz * sizeof(float));
+        cudaMemset(txz[0], 0, (nx - 1) * (nz - 1) * sizeof(float));
+        cudaMemset(txz[1], 0, (nx - 1) * (nz - 1) * sizeof(float));
     }
 }
 
 Grid_Core::~Grid_Core() {
     if (mem_location == HOST_MEM) {
-        if (vx) {
-            delete[] vx;
-            vx = nullptr;
+        if (vx[0]) {
+            delete[] vx[0];
+            vx[0] = nullptr;
         }
-        if (vz) {
-            delete[] vz;
-            vz = nullptr;
+        if (vx[1]) {
+            delete[] vx[1];
+            vx[1] = nullptr;
         }
-        if (sx) {
-            delete[] sx;
-            sx = nullptr;
+        if (vz[0]) {
+            delete[] vz[0];
+            vz[0] = nullptr;
         }
-        if (sz) {
-            delete[] sz;
-            sz = nullptr;
+        if (vz[1]) {
+            delete[] vz[1];
+            vz[1] = nullptr;
         }
-        if (txz) {
-            delete[] txz;
-            txz = nullptr;
+        if (sx[0]) {
+            delete[] sx[0];
+            sx[0] = nullptr;
+        }
+        if (sx[1]) {
+            delete[] sx[1];
+            sx[1] = nullptr;
+        }
+        if (sz[0]) {
+            delete[] sz[0];
+            sz[0] = nullptr;
+        }
+        if (sz[1]) {
+            delete[] sz[1];
+            sz[1] = nullptr;
+        }
+        if (txz[0]) {
+            delete[] txz[0];
+            txz[0] = nullptr;
+        }
+        if (txz[1]) {
+            delete[] txz[1];
+            txz[1] = nullptr;
         }
     } else {
-        if (vx) {
-            cudaFree(vx);
-            vx = nullptr;
+        if (vx[0]) {
+            cudaFree(vx[0]);
+            vx[0] = nullptr;
         }
-        if (vz) {
-            cudaFree(vz);
-            vz = nullptr;
+        if (vx[1]) {
+            cudaFree(vx[1]);
+            vx[1] = nullptr;
         }
-        if (sx) {
-            cudaFree(sx);
-            sx = nullptr;
+        if (vz[0]) {
+            cudaFree(vz[0]);
+            vz[0] = nullptr;
         }
-        if (sz) {
-            cudaFree(sz);
-            sz = nullptr;
+        if (vz[1]) {
+            cudaFree(vz[1]);
+            vz[1] = nullptr;
         }
-        if (txz) {
-            cudaFree(txz);
-            txz = nullptr;
+        if (sx[0]) {
+            cudaFree(sx[0]);
+            sx[0] = nullptr;
+        }
+        if (sx[1]) {
+            cudaFree(sx[1]);
+            sx[1] = nullptr;
+        }
+        if (sz[0]) {
+            cudaFree(sz[0]);
+            sz[0] = nullptr;
+        }
+        if (sz[1]) {
+            cudaFree(sz[1]);
+            sz[1] = nullptr;
+        }
+        if (txz[0]) {
+            cudaFree(txz[0]);
+            txz[0] = nullptr;
+        }
+        if (txz[1]) {
+            cudaFree(txz[1]);
+            txz[1] = nullptr;
         }
     }
 }
@@ -390,11 +449,16 @@ void Grid_Core::memcpy_to_host_from(const Grid_Core &rhs) {
         printf("RE in \"Grid_Core::memcpy_to_host_from\"!\n");
         exit(1);
     }
-    cudaMemcpy(vx, rhs.vx, (nx - 1) * nz * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(vz, rhs.vz, nx * (nz - 1) * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(sx, rhs.sx, nx * nz * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(sz, rhs.sz, nx * nz * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaMemcpy(txz, rhs.txz, (nx - 1) * (nz - 1) * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(vx[0], rhs.vx[0], (nx - 1) * nz * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(vx[1], rhs.vx[1], (nx - 1) * nz * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(vz[0], rhs.vz[0], nx * (nz - 1) * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(vz[1], rhs.vz[1], nx * (nz - 1) * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(sx[0], rhs.sx[0], nx * nz * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(sx[1], rhs.sx[1], nx * nz * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(sz[0], rhs.sz[0], nx * nz * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(sz[1], rhs.sz[1], nx * nz * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(txz[0], rhs.txz[0], (nx - 1) * (nz - 1) * sizeof(float), cudaMemcpyDeviceToHost);
+    cudaMemcpy(txz[1], rhs.txz[1], (nx - 1) * (nz - 1) * sizeof(float), cudaMemcpyDeviceToHost);
 }
 
 std::unique_ptr<float[]> ricker_wavelet(int nt, float dt, float fpeak) {

@@ -55,40 +55,43 @@ int main() {
         dim3 gridSize((par.nx + 15) / 16, (par.nz + 15) / 16);
         dim3 blockSize(16, 16);
 
+        int cur = it & 1;
+        int pre = cur ^ 1;
+
         // 应力更新
         update_stress<<<gridSize, blockSize>>>(
             gc_device.view(), gm_device.view(), cpml.view(), 
-            par.dx, par.dz, par.dt
+            par.dx, par.dz, par.dt, cur, pre
         );
 
         // 加入震源
         apply_source<<<1, 1>>>(
-            gc_device.view(), wl[it] * gain, par.posx, par.posz
+            gc_device.view(), wl[it] * gain, par.posx, par.posz, cur
         );
         cudaDeviceSynchronize();
         
         // ψ_stress 更新
         cpml_update_psi_stress<<<gridSize, blockSize>>>(
             gc_device.view(), cpml.view(), 
-            par.dx, par.dz, par.dt
+            par.dx, par.dz, par.dt, cur
         );
         cudaDeviceSynchronize();
 
         // 速度更新
         update_velocity<<<gridSize, blockSize>>>(
             gc_device.view(), gm_device.view(), cpml.view(), 
-            par.dx, par.dz, par.dt
+            par.dx, par.dz, par.dt, cur, pre
         );
         cudaDeviceSynchronize();
         
         // ψ_vel 更新
         cpml_update_psi_vel<<<gridSize, blockSize>>>(
             gc_device.view(), cpml.view(), 
-            par.dx, par.dz, par.dt
+            par.dx, par.dz, par.dt, cur
         );
 
         // 自由边界
-        apply_free_boundary<<<1, std::max(par.nx, par.nz)>>>(gc_device.view());
+        apply_free_boundary<<<1, std::max(par.nx, par.nz)>>>(gc_device.view(), cur);
         cudaDeviceSynchronize();
         
         if (it % 100 == 0) {
@@ -100,7 +103,7 @@ int main() {
         if (it % par.snapshot == 0) {
             // 拷贝到 host 输出波场快照
             gc_host.memcpy_to_host_from(gc_device);
-            sshot.output(it, par.dt);
+            sshot.output(it, par.dt, cur);
         }
     }
     printf("\r%%100.00 finished.\n");

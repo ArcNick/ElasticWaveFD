@@ -17,7 +17,7 @@
  - **编译/运行**
      ```bash
      nvcc -rdc=true -I include src/*.cu -o bin/main_debug -std=c++17
-     ./bin/main_debug
+     time ./bin/main_debug
      ```
 
  - **代码检测**

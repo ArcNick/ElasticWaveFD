@@ -113,12 +113,12 @@ __device__ int get_cpml_idx_z_half(int lz, int iz, int thickness);
 
 __global__ void cpml_update_psi_vel(
     Grid_Core::View gc, Cpml::View cpml, 
-    float dx, float dz, float dt
+    float dx, float dz, float dt, int cur
 );
 
 __global__ void cpml_update_psi_stress(
     Grid_Core::View gc, Cpml::View cpml, 
-    float dx, float dz, float dt
+    float dx, float dz, float dt, int cur
 );
 
 #endif

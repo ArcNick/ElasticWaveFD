@@ -241,7 +241,7 @@ __device__ int get_cpml_idx_z_half(int lz, int iz, int thickness) {
 }
 
 __global__ void cpml_update_psi_vel(
-    Grid_Core::View gc, Cpml::View cpml, float dx, float dz, float dt
+    Grid_Core::View gc, Cpml::View cpml, float dx, float dz, float dt, int cur
 ) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
@@ -260,31 +260,31 @@ __global__ void cpml_update_psi_vel(
     if (pml_idx_x_int < thickness) {
         float a_int = cpml.a_int[pml_idx_x_int];
         float b_int = cpml.b_int[pml_idx_x_int];
-        float dvz_dx = Dx_int_8th(gc.vz, ix, iz, nx, dx);
+        float dvz_dx = Dx_int_8th(gc.vz[cur], ix, iz, nx, dx);
         PVZ_X(ix, iz) = b_int * PVZ_X(ix, iz) + a_int * dvz_dx;
     }
     if (pml_idx_z_int < thickness) {
         float a_int = cpml.a_int[pml_idx_z_int];
         float b_int = cpml.b_int[pml_idx_z_int];
-        float dvx_dz = Dz_int_8th(gc.vx, ix, iz, nx - 1, dz);
+        float dvx_dz = Dz_int_8th(gc.vx[cur], ix, iz, nx - 1, dz);
         PVX_Z(ix, iz) = b_int * PVX_Z(ix, iz) + a_int * dvx_dz;
     } 
     if (pml_idx_x_half < thickness - 1) {
         float a_half = cpml.a_half[pml_idx_x_half];
         float b_half = cpml.b_half[pml_idx_x_half];
-        float dvx_dx = (ix <= 3 ? 0 : Dx_half_8th(gc.vx, ix, iz, nx - 1, dx));
+        float dvx_dx = (ix <= 3 ? 0 : Dx_half_8th(gc.vx[cur], ix, iz, nx - 1, dx));
         PVX_X(ix, iz) = b_half * PVX_X(ix, iz) + a_half * dvx_dx;
     }
     if (pml_idx_z_half < thickness - 1) {
         float a_half = cpml.a_half[pml_idx_z_half];
         float b_half = cpml.b_half[pml_idx_z_half];
-        float dvz_dz = (iz <= 3 ? 0 : Dz_half_8th(gc.vz, ix, iz, nx, dz));
+        float dvz_dz = (iz <= 3 ? 0 : Dz_half_8th(gc.vz[cur], ix, iz, nx, dz));
         PVZ_Z(ix, iz) = b_half * PVZ_Z(ix, iz) + a_half * dvz_dz;
     }
 }
 
 __global__ void cpml_update_psi_stress(
-    Grid_Core::View gc, Cpml::View cpml, float dx, float dz, float dt
+    Grid_Core::View gc, Cpml::View cpml, float dx, float dz, float dt, int cur
 ) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
@@ -304,29 +304,29 @@ __global__ void cpml_update_psi_stress(
     if (pml_idx_x_int < thickness) { 
         float a_int = cpml.a_int[pml_idx_x_int];
         float b_int = cpml.b_int[pml_idx_x_int];
-        float dsx_dx = Dx_int_8th(gc.sx, ix, iz, nx, dx);
-        float dsz_dx = Dx_int_8th(gc.sz, ix, iz, nx, dx);
+        float dsx_dx = Dx_int_8th(gc.sx[cur], ix, iz, nx, dx);
+        float dsz_dx = Dx_int_8th(gc.sz[cur], ix, iz, nx, dx);
         PSX_X(ix, iz) = b_int * PSX_X(ix, iz) + a_int * dsx_dx;
         PSZ_X(ix, iz) = b_int * PSZ_X(ix, iz) + a_int * dsz_dx;
     }
     if (pml_idx_z_int < thickness) {
         float a_int = cpml.a_int[pml_idx_z_int];
         float b_int = cpml.b_int[pml_idx_z_int];
-        float dsx_dz = Dz_int_8th(gc.sx, ix, iz, nx, dz);
-        float dsz_dz = Dz_int_8th(gc.sz, ix, iz, nx, dz);
+        float dsx_dz = Dz_int_8th(gc.sx[cur], ix, iz, nx, dz);
+        float dsz_dz = Dz_int_8th(gc.sz[cur], ix, iz, nx, dz);
         PSX_Z(ix, iz) = b_int * PSX_Z(ix, iz) + a_int * dsx_dz;
         PSZ_Z(ix, iz) = b_int * PSZ_Z(ix, iz) + a_int * dsz_dz;
     }
     if (pml_idx_x_half < thickness - 1) {
         float a_half = cpml.a_half[pml_idx_x_half];
         float b_half = cpml.b_half[pml_idx_x_half];
-        float dtxz_dx = (ix <= 3 ? 0 : Dx_half_8th(gc.txz, ix, iz, nx - 1, dx));
+        float dtxz_dx = (ix <= 3 ? 0 : Dx_half_8th(gc.txz[cur], ix, iz, nx - 1, dx));
         PTXZ_X(ix, iz) = b_half * PTXZ_X(ix, iz) + a_half * dtxz_dx;
     }
     if (pml_idx_z_half < thickness - 1) {
         float a_half = cpml.a_half[pml_idx_z_half];
         float b_half = cpml.b_half[pml_idx_z_half];
-        float dtxz_dz = (iz <= 3 ? 0 : Dz_half_8th(gc.txz, ix, iz, nx - 1, dz));
+        float dtxz_dz = (iz <= 3 ? 0 : Dz_half_8th(gc.txz[cur], ix, iz, nx - 1, dz));
         PTXZ_Z(ix, iz) = b_half * PTXZ_Z(ix, iz) + a_half * dtxz_dz;
     }
 }
