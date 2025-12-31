@@ -3,12 +3,7 @@
 #include <sstream>
 #include <string>
 
-Array_Info::Array_Info(
-    float* const d[2], int lx, int lz, const std::string &n
-) : lenx(lx), lenz(lz), name(n) {
-    data[0] = d[0];
-    data[1] = d[1];    
-}
+
 
 Snapshot::Snapshot(const Grid_Core &g) {
     nx = g.nx;
@@ -36,8 +31,10 @@ void Snapshot::output(int it, float dt, int cur) {
         fs::path file_path = full_path / filename;
         
         FILE *fp = fopen(file_path.string().c_str(), "wb");
+        int offset = cur * info.lenx * info.lenz;
+        float* data_ptr = info.data + offset;
         for (int i = 0; i < info.lenz; i++) {
-            fwrite(&info.data[cur][i * info.lenx], sizeof(float), info.lenx, fp);
+            fwrite(&data_ptr[i * info.lenx], sizeof(float), info.lenx, fp);
         }
         fclose(fp);
     }

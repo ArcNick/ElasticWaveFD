@@ -9,10 +9,11 @@
 namespace fs = std::filesystem;
 
 struct Array_Info {
-    float *data[2];
+    float *data;
     int lenx, lenz;
     std::string name;
-    Array_Info(float* const d[2], int lx, int lz, const std::string &n);
+    Array_Info(float* const d, int lx, int lz, const std::string &n) :
+        data(d), lenx(lx), lenz(lz), name(n) {}
     ~Array_Info() = default;
 };
 

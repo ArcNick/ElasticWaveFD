@@ -6,7 +6,7 @@
 #include <memory>
 
 std::unique_ptr<float[]> ricker_wavelet(int nt, float dt, float fpeak);
-__global__ void thomsen_to_stiffness(Grid_Model_Thomsen::View gm);
+// __global__ void thomsen_to_stiffness(Grid_Model_Thomsen::View gm);
 
 // idx = iz * nx + ix
 #define VP(ix, iz) ((gm).vp0[(iz) * (gm).nx + (ix)])
@@ -20,17 +20,16 @@ __global__ void thomsen_to_stiffness(Grid_Model_Thomsen::View gm);
 #define C33(ix, iz) ((gm).C33[(iz) * (gm).nx + (ix)])
 #define C55(ix, iz) ((gm).C55[(iz) * (gm).nx + (ix)])
 
-#define VX_C(ix, iz) ((gc).vx[cur][(iz) * ((gc).nx - 1) + (ix)])
-#define VZ_C(ix, iz) ((gc).vz[cur][(iz) * (gc).nx + (ix)])
-#define SX_C(ix, iz) ((gc).sx[cur][(iz) * (gc).nx + (ix)])
-#define SZ_C(ix, iz) ((gc).sz[cur][(iz) * (gc).nx + (ix)])
-#define TXZ_C(ix, iz) ((gc).txz[cur][(iz) * ((gc).nx - 1) + (ix)])
-
-#define VX_P(ix, iz) ((gc).vx[pre][(iz) * ((gc).nx - 1) + (ix)])
-#define VZ_P(ix, iz) ((gc).vz[pre][(iz) * (gc).nx + (ix)])
-#define SX_P(ix, iz) ((gc).sx[pre][(iz) * (gc).nx + (ix)])
-#define SZ_P(ix, iz) ((gc).sz[pre][(iz) * (gc).nx + (ix)])
-#define TXZ_P(ix, iz) ((gc).txz[pre][(iz) * ((gc).nx - 1) + (ix)])
+#define VX_C(ix, iz) ((gc).vx[(iz) * ((gc).nx - 1) + (ix) + (gc.nx - 1) * (gc.nz) * cur])
+#define VZ_C(ix, iz) ((gc).vz[(iz) * (gc).nx + (ix) + (gc.nx) * (gc.nz - 1) * cur])
+#define SX_C(ix, iz) ((gc).sx[(iz) * (gc).nx + (ix) + (gc.nx) * (gc.nz) * cur])
+#define SZ_C(ix, iz) ((gc).sz[(iz) * (gc).nx + (ix) + (gc.nx) * (gc.nz) * cur])
+#define TXZ_C(ix, iz) ((gc).txz[(iz) * ((gc).nx - 1) + (ix) + (gc.nx - 1) * (gc.nz - 1) * cur])
+#define VX_P(ix, iz) ((gc).vx[(iz) * ((gc).nx - 1) + (ix) + (gc.nx - 1) * (gc.nz) * pre])
+#define VZ_P(ix, iz) ((gc).vz[(iz) * (gc).nx + (ix) + (gc.nx) * (gc.nz - 1) * pre])
+#define SX_P(ix, iz) ((gc).sx[(iz) * (gc).nx + (ix) + (gc.nx) * (gc.nz) * pre])
+#define SZ_P(ix, iz) ((gc).sz[(iz) * (gc).nx + (ix) + (gc.nx) * (gc.nz) * pre])
+#define TXZ_P(ix, iz) ((gc).txz[(iz) * ((gc).nx - 1) + (ix) + (gc.nx - 1) * (gc.nz - 1) * pre])
 
 enum MemoryType {
     HOST_MEM = 0,

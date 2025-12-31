@@ -7,8 +7,8 @@
 __global__ void apply_source(
     Grid_Core::View gc, float src, int posx, int posz, int cur
 ) {
-    gc.sx[cur][posz * gc.nx + posx] += src;
-    gc.sz[cur][posz * gc.nx + posx] += src;
+    SX_C(posx, posz) += src;
+    SZ_C(posx, posz) += src;
 }
 
 __global__ void update_stress(
@@ -28,10 +28,10 @@ __global__ void update_stress(
     float C13 = C13(ix, iz);
     float C33 = C33(ix, iz);
     
-    float dvx_dx = (ix <= 3 ? 0 : Dx_half_8th(gc.vx[pre], ix, iz, nx - 1, dx));
-    float dvz_dz = (iz <= 3 ? 0 : Dz_half_8th(gc.vz[pre], ix, iz, nx, dz));
-    float dvz_dx = Dx_int_8th(gc.vz[pre], ix, iz, nx, dx);
-    float dvx_dz = Dz_int_8th(gc.vx[pre], ix, iz, nx - 1, dz);
+    float dvx_dx = (ix <= 3 ? 0 : Dx_half_8th(gc.vx, ix, iz, nx - 1, nz, dx, pre));
+    float dvz_dz = (iz <= 3 ? 0 : Dz_half_8th(gc.vz, ix, iz, nx, nz - 1, dz, pre));
+    float dvz_dx = Dx_int_8th(gc.vz, ix, iz, nx, nz - 1, dx, pre);
+    float dvx_dz = Dz_int_8th(gc.vx, ix, iz, nx - 1, nz, dz, pre);
     
     int pml_idx_x_int = get_cpml_idx_x_int(nx, ix, cpml.thickness);
     int pml_idx_z_int = get_cpml_idx_z_int(nz, iz, cpml.thickness);
@@ -82,8 +82,8 @@ __global__ void update_velocity(
 
     // vx : (nx-1) × nz
     float rho_half_x = (RHO(ix, iz) + RHO(ix + 1, iz)) * 0.5f;
-    float dtxz_dz = (iz <= 3 ? 0 : Dz_half_8th(gc.txz[cur], ix, iz, nx - 1, dz));
-    float dsx_dx = Dx_int_8th(gc.sx[cur], ix, iz, nx, dx);
+    float dtxz_dz = (iz <= 3 ? 0 : Dz_half_8th(gc.txz, ix, iz, nx - 1, nz - 1, dz, cur));
+    float dsx_dx = Dx_int_8th(gc.sx, ix, iz, nx, nz, dx, cur);
 
     if (pml_idx_x_int < cpml.thickness) {
         dsx_dx = dsx_dx / cpml.kappa_int[pml_idx_x_int] + PSX_X(ix, iz);
@@ -95,8 +95,8 @@ __global__ void update_velocity(
     
     // vz : nx × (nz-1)
     float rho_half_z = (RHO(ix, iz) + RHO(ix, iz + 1)) * 0.5f;
-    float dtxz_dx = (ix <= 3 ? 0 : Dx_half_8th(gc.txz[cur], ix, iz, nx - 1, dx));
-    float dsz_dz = Dz_int_8th(gc.sz[cur], ix, iz, nx, dz);
+    float dtxz_dx = (ix <= 3 ? 0 : Dx_half_8th(gc.txz, ix, iz, nx - 1, nz - 1, dx, cur));
+    float dsz_dz = Dz_int_8th(gc.sz, ix, iz, nx, nz, dz, cur);
 
     if (pml_idx_x_half < cpml.thickness - 1) {
         dtxz_dx = dtxz_dx / cpml.kappa_half[pml_idx_x_half] + PTXZ_X(ix, iz);
@@ -108,6 +108,11 @@ __global__ void update_velocity(
 }
 
 __global__ void apply_free_boundary(Grid_Core::View gc, int cur) {
+    /*
+    已被暂时弃用；
+    之前原地更新不加缓冲后，不加自由边界会导致数值不稳定；
+    改为分块双缓冲后，直接应用cpml在边界似乎不会出现数值不稳定现象了；
+    */
     int idx = threadIdx.x;
     int nx = gc.nx, nz = gc.nz;
 

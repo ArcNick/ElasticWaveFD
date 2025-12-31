@@ -14,24 +14,28 @@ static __constant__ float d[5] = {
 // 整网格点，向前差分
 
 static __device__ __forceinline__ float Dx_int_8th(
-    float *f, int ix, int iz, int ldx, float dx
+    float *f, int ix, int iz, int lx, int lz, float dx, int type
 ) {
     float sum = 0.0f;
+    int offset = type * lz * lx;
     for (int n = 1; n <= 4; n++) {
         sum += d[n] * (
-            f[iz * ldx + (ix + n)] - f[iz * ldx + (ix - n + 1)]
+            + f[iz * lx + (ix + n) + offset]
+            - f[iz * lx + (ix - n + 1) + offset]
         );
     }
     return sum / dx;
 }
 
 static __device__ __forceinline__ float Dz_int_8th(
-    float *f, int ix, int iz, int ldx, float dz
+    float *f, int ix, int iz, int lx, int lz, float dz, int type
 ) {
     float sum = 0.0f;
+    int offset = type * lz * lx;
     for (int n = 1; n <= 4; n++) {
         sum += d[n] * (
-            f[(iz + n) * ldx + ix] - f[(iz - n + 1) * ldx + ix]
+            + f[(iz + n) * lx + ix + offset]
+            - f[(iz - n + 1) * lx + ix + offset]
         );
     }
     return sum / dz;
@@ -40,24 +44,28 @@ static __device__ __forceinline__ float Dz_int_8th(
 // 半网格点，向后差分
 
 static __device__ __forceinline__ float Dx_half_8th(
-    float *f, int ix, int iz, int ldx, float dx
+    float *f, int ix, int iz, int lx, int lz, float dx, int type
 ) {
     float sum = 0.0f;
+    int offset = type * lz * lx;
     for (int n = 1; n <= 4; n++) {
         sum += c[n] * (
-            f[iz * ldx + (ix + n - 1)] - f[iz * ldx + (ix - n)]
+            + f[iz * lx + (ix + n - 1) + offset]
+            - f[iz * lx + (ix - n) + offset]
         );
     }
     return sum / dx;
 }
 
 static __device__ __forceinline__ float Dz_half_8th(
-    float *f, int ix, int iz, int ldx, float dz
+    float *f, int ix, int iz, int lx, int lz, float dz, int type
 ) {
     float sum = 0.0f;
+    int offset = type * lz * lx;
     for (int n = 1; n <= 4; n++) {
         sum += c[n] * (
-            f[(iz + n - 1) * ldx + ix] - f[(iz - n) * ldx + ix]
+            + f[(iz + n - 1) * lx + ix + offset]
+            - f[(iz - n) * lx + ix + offset]
         );
     }
     return sum / dz;

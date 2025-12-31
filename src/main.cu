@@ -91,7 +91,7 @@ int main() {
         );
 
         // 自由边界
-        apply_free_boundary<<<1, std::max(par.nx, par.nz)>>>(gc_device.view(), cur);
+        // apply_free_boundary<<<1, std::max(par.nx, par.nz)>>>(gc_device.view(), cur);
         cudaDeviceSynchronize();
         
         if (it % 100 == 0) {

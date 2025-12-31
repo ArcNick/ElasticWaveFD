@@ -4,39 +4,37 @@
 #include <cuda_runtime.h>
 #include <array>
 
-class Grid_Model_Thomsen {
-public:
-    float *vp0, *vs0, *rho;
-    float *epsilon, *delta, *gamma;
-    float *C11, *C13, *C33, *C44, *C66;
+// class Grid_Model_Thomsen {
+// public:
+//     float *vp0, *vs0, *rho;
+//     float *epsilon, *delta, *gamma;
+//     float *C11, *C13, *C33, *C44, *C66;
 
-    int nx, nz;
-    bool mem_location;  // 0 : host, 1 : device
+//     int nx, nz;
+//     bool mem_location;  // 0 : host, 1 : device
 
-    struct View {
-        float *vp0, *vs0, *rho;
-        float *epsilon, *delta, *gamma;
-        float *C11, *C13, *C33, *C44, *C66;
-        int nx, nz;
-        bool mem_location;
-    };
+//     struct View {
+//         float *vp0, *vs0, *rho;
+//         float *epsilon, *delta, *gamma;
+//         float *C11, *C13, *C33, *C44, *C66;
+//         int nx, nz;
+//     };
     
-    View view() {
-        return (View){
-            vp0, vs0, rho, 
-            epsilon, delta, gamma, 
-            C11, C13, C33, C44, C66, 
-            nx, nz, mem_location
-        };
-    }
+//     View view() {
+//         return (View){
+//             vp0, vs0, rho, 
+//             epsilon, delta, gamma, 
+//             C11, C13, C33, C44, C66, nx, nz
+//         };
+//     }
 
-    Grid_Model_Thomsen(int nx, int nz, bool mem_location);
-    ~Grid_Model_Thomsen();
+//     Grid_Model_Thomsen(int nx, int nz, bool mem_location);
+//     ~Grid_Model_Thomsen();
 
-    void read(const std::array<const char *, 6> &files);
-    void memcpy_to_device_from(const Grid_Model_Thomsen &rhs);
-    void calc_stiffness();
-};
+//     void read(const std::array<const char *, 6> &files);
+//     void memcpy_to_device_from(const Grid_Model_Thomsen &rhs);
+//     void calc_stiffness();
+// };
 
 class Grid_Model {
 public:
@@ -47,16 +45,12 @@ public:
     bool mem_location;  // 0 : host, 1 : device, default : device
 
     struct View {
-        float *vp0, *vs0, *rho;
-        float *C11, *C13, *C33, *C55;
+        float *rho, *C11, *C13, *C33, *C55;
         int nx, nz;
-        bool mem_location;
     };
     View view() {
         return (View){
-            vp0, vs0, rho, 
-            C11, C13, C33, C55, 
-            nx, nz, mem_location
+            rho, C11, C13, C33, C55, nx, nz
         };
     }
 
@@ -64,7 +58,7 @@ public:
     ~Grid_Model();
 
     void read(const std::array<const char *, 7> &files);
-    void memcpy_to_device_from(const Grid_Model &rhs);
+    // void memcpy_to_device_from(const Grid_Model &rhs);
 };
 
 #endif

@@ -1,4 +1,4 @@
-fpeak = 25.0
+fpeak = 30.0
 nx = 500
 nz = 500
 dx = 2.0
