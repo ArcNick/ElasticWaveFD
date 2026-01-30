@@ -61,50 +61,5 @@ int main() {
         fwrite(a[i], sizeof(float), nx, fp);
     }
 
-    // ======γ=====
-    // fp = fopen("gamma.bin", "wb");
-    // for (int i = 0; i < nz; i++) {
-    //     for (int j = 0; j < nx; j++) {
-    //         if (i < nz / 2) {
-    //             a[i][j] = params["gamma"].first;
-    //         } else {
-    //             a[i][j] = params["gamma"].second;
-    //         }
-    //     }
-    // }
-    // for (int i = 0; i < nz; i++) {
-    //     fwrite(a[i], sizeof(float), nx, fp);
-    // }
-
-    // // ======ε=====
-    // fp = fopen("epsilon.bin", "wb");
-    // for (int i = 0; i < nz; i++) {
-    //     for (int j = 0; j < nx; j++) {
-    //         if (i < nz / 2) {
-    //             a[i][j] = params["epsilon"].first;
-    //         } else {
-    //             a[i][j] = params["epsilon"].second;
-    //         }
-    //     }
-    // }
-    // for (int i = 0; i < nz; i++) {
-    //     fwrite(a[i], sizeof(float), nx, fp);
-    // }
-
-    // // ======δ=====
-    // fp = fopen("delta.bin", "wb");
-    // for (int i = 0; i < nz; i++) {
-    //     for (int j = 0; j < nx; j++) {
-    //         if (i < nz / 2) {
-    //             a[i][j] = params["delta"].first;
-    //         } else {
-    //             a[i][j] = params["delta"].second;
-    //         }
-    //     }
-    // }
-    // for (int i = 0; i < nz; i++) {
-    //     fwrite(a[i], sizeof(float), nx, fp);
-    // }
-
     fclose(fp);
 }

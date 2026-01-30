@@ -57,7 +57,7 @@ public:
     Grid_Model(int nx, int nz);
     ~Grid_Model();
 
-    void read(const std::array<const char *, 7> &files);
+    void read(const std::string &file);
     // void memcpy_to_device_from(const Grid_Model &rhs);
 };
 

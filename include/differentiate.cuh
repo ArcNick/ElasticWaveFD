@@ -11,7 +11,7 @@ static __constant__ float d[5] = {
     0, 0.8f, -0.2f, 0.038095f, -0.00357143f
 };
 
-// 整网格点，向前差分
+// 整网格点，"向前差分"
 
 static __device__ __forceinline__ float Dx_int_8th(
     float *f, int ix, int iz, int lx, int lz, float dx, int type
@@ -41,7 +41,7 @@ static __device__ __forceinline__ float Dz_int_8th(
     return sum / dz;
 }
 
-// 半网格点，向后差分
+// 半网格点，"向后差分"
 
 static __device__ __forceinline__ float Dx_half_8th(
     float *f, int ix, int iz, int lx, int lz, float dx, int type

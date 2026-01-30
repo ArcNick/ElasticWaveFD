@@ -8,21 +8,13 @@ const float gain = 1e6;
 
 int main() {
     Params par;
-    par.read("models/params.txt");
+    par.read("models/params.json");
     
     Grid_Model gm_device(par.nx, par.nz);
-    gm_device.read({
-        "models/vp.bin", 
-        "models/vs.bin", 
-        "models/rho.bin",
-        "models/C11.bin", 
-        "models/C13.bin", 
-        "models/C33.bin", 
-        "models/C55.bin"
-    });
+    gm_device.read("models/params.json");
     
     Grid_Core gc_readin(par.nx, par.nz, HOST_MEM);
-    Cpml cpml(par.view(), "models/cpml.txt");
+    Cpml cpml(par.view(), "models/cpml.json");
     
     printf("网格尺寸: %d x %d\n", par.nx, par.nz);
     printf("空间步长: dx = %f, dz = %f\n", par.dx, par.dz);
@@ -68,21 +60,18 @@ int main() {
         apply_source<<<1, 1>>>(
             gc_device.view(), wl[it] * gain, par.posx, par.posz, cur
         );
-        cudaDeviceSynchronize();
         
         // ψ_stress 更新
         cpml_update_psi_stress<<<gridSize, blockSize>>>(
             gc_device.view(), cpml.view(), 
             par.dx, par.dz, par.dt, cur
         );
-        cudaDeviceSynchronize();
 
         // 速度更新
         update_velocity<<<gridSize, blockSize>>>(
             gc_device.view(), gm_device.view(), cpml.view(), 
             par.dx, par.dz, par.dt, cur, pre
         );
-        cudaDeviceSynchronize();
         
         // ψ_vel 更新
         cpml_update_psi_vel<<<gridSize, blockSize>>>(

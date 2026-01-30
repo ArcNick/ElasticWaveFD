@@ -94,11 +94,11 @@ public:
         };
     }
 
-    Cpml(Params::View par, const char *file);
+    Cpml(Params::View par, const std::string &file);
     ~Cpml();
 
 private:
-    void read(const char *file);
+    void read(const std::string &file);
     void init(Params::View par);
 };
 

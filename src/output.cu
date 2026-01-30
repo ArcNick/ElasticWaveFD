@@ -3,8 +3,6 @@
 #include <sstream>
 #include <string>
 
-
-
 Snapshot::Snapshot(const Grid_Core &g) {
     nx = g.nx;
     nz = g.nz;

@@ -1,11 +1,12 @@
+#include "cJSON.h"
 #include "common.cuh"
 #include "differentiate.cuh"
 #include "cpml.cuh"
-#include <cstdio>
-#include <algorithm>
+#include <iostream>
 #include <cmath>
+#include <string>
 
-Cpml::Cpml(Params::View par, const char *file) {
+Cpml::Cpml(Params::View par, const std::string &file) {
     read(file);
     nx = par.nx;
     nz = par.nz;
@@ -140,20 +141,22 @@ Cpml::~Cpml() {
     }
 }
 
-void Cpml::read(const char *file) {
-    FILE *fp = fopen(file, "r");
-    if (fp == nullptr) {
-        printf("Failed to open CPML file %s\n", file);
+void Cpml::read(const std::string &file) {
+    const std::string json_content = readJsonFile(file);
+    cJSON *root = cJSON_Parse(json_content.c_str());
+    if (root == nullptr) {
+        std::cout << "Failed to parse CPML JSON file " << file << '\n';
         exit(1);
     }
-    fscanf(fp, "thickness = %d\n", &thickness);
-    fscanf(fp, "N = %f\n", &N);
-    fscanf(fp, "cp_max = %f\n", &cp_max);
-    fscanf(fp, "Rc = %f\n", &Rc);
-    fscanf(fp, "kappa0 = %f\n", &kappa0);
 
-    printf("CPML parameters loaded.\n");
-    fclose(fp);
+    thickness = cJSON_GetObjectItem(root, "thickness")->valueint;
+    N = cJSON_GetObjectItem(root, "N")->valuedouble;
+    cp_max = cJSON_GetObjectItem(root, "cp_max")->valuedouble;
+    Rc = cJSON_GetObjectItem(root, "Rc")->valuedouble;
+    kappa0 = cJSON_GetObjectItem(root, "kappa0")->valuedouble;
+    
+    cJSON_Delete(root);
+    std::cout << "CPML parameters loaded.\n";
 }
 
 __global__ void cpml_init_params(

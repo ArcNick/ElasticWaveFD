@@ -9,7 +9,7 @@
 
  - **编译/运行**
      ```bash
-     nvcc -rdc=true -I include src/*.cu -o bin/main_debug -std=c++17
+     nvcc -rdc=true -I include src/*.cu src/cJSON.c -o bin/main_debug -std=c++17 -lm
      time ./bin/main_debug
      ```
 

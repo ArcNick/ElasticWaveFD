@@ -1,12 +1,11 @@
 #ifndef SIMULATION_UTILS_CUH
 #define SIMULATION_UTILS_CUH
 
-#include "grid_model.cuh"
-#include "grid_core.cuh"
 #include <memory>
+#include <string>
 
-std::unique_ptr<float[]> ricker_wavelet(int nt, float dt, float fpeak);
-// __global__ void thomsen_to_stiffness(Grid_Model_Thomsen::View gm);
+extern std::unique_ptr<float[]> ricker_wavelet(int nt, float dt, float fpeak);
+extern std::string readJsonFile(const std::string& filename);
 
 // idx = iz * nx + ix
 #define VP(ix, iz) ((gm).vp0[(iz) * (gm).nx + (ix)])
@@ -20,16 +19,16 @@ std::unique_ptr<float[]> ricker_wavelet(int nt, float dt, float fpeak);
 #define C33(ix, iz) ((gm).C33[(iz) * (gm).nx + (ix)])
 #define C55(ix, iz) ((gm).C55[(iz) * (gm).nx + (ix)])
 
-#define VX_C(ix, iz) ((gc).vx[(iz) * ((gc).nx - 1) + (ix) + (gc.nx - 1) * (gc.nz) * cur])
-#define VZ_C(ix, iz) ((gc).vz[(iz) * (gc).nx + (ix) + (gc.nx) * (gc.nz - 1) * cur])
-#define SX_C(ix, iz) ((gc).sx[(iz) * (gc).nx + (ix) + (gc.nx) * (gc.nz) * cur])
-#define SZ_C(ix, iz) ((gc).sz[(iz) * (gc).nx + (ix) + (gc.nx) * (gc.nz) * cur])
-#define TXZ_C(ix, iz) ((gc).txz[(iz) * ((gc).nx - 1) + (ix) + (gc.nx - 1) * (gc.nz - 1) * cur])
-#define VX_P(ix, iz) ((gc).vx[(iz) * ((gc).nx - 1) + (ix) + (gc.nx - 1) * (gc.nz) * pre])
-#define VZ_P(ix, iz) ((gc).vz[(iz) * (gc).nx + (ix) + (gc.nx) * (gc.nz - 1) * pre])
-#define SX_P(ix, iz) ((gc).sx[(iz) * (gc).nx + (ix) + (gc.nx) * (gc.nz) * pre])
-#define SZ_P(ix, iz) ((gc).sz[(iz) * (gc).nx + (ix) + (gc.nx) * (gc.nz) * pre])
-#define TXZ_P(ix, iz) ((gc).txz[(iz) * ((gc).nx - 1) + (ix) + (gc.nx - 1) * (gc.nz - 1) * pre])
+#define VX_C(ix, iz) ((gc).vx[(iz) * ((gc).nx - 1) + (ix) + ((gc).nx - 1) * ((gc).nz) * cur])
+#define VZ_C(ix, iz) ((gc).vz[(iz) * (gc).nx + (ix) + ((gc).nx) * ((gc).nz - 1) * cur])
+#define SX_C(ix, iz) ((gc).sx[(iz) * (gc).nx + (ix) + ((gc).nx) * ((gc).nz) * cur])
+#define SZ_C(ix, iz) ((gc).sz[(iz) * (gc).nx + (ix) + ((gc).nx) * ((gc).nz) * cur])
+#define TXZ_C(ix, iz) ((gc).txz[(iz) * ((gc).nx - 1) + (ix) + ((gc).nx - 1) * ((gc).nz - 1) * cur])
+#define VX_P(ix, iz) ((gc).vx[(iz) * ((gc).nx - 1) + (ix) + ((gc).nx - 1) * ((gc).nz) * pre])
+#define VZ_P(ix, iz) ((gc).vz[(iz) * (gc).nx + (ix) + ((gc).nx) * ((gc).nz - 1) * pre])
+#define SX_P(ix, iz) ((gc).sx[(iz) * (gc).nx + (ix) + ((gc).nx) * ((gc).nz) * pre])
+#define SZ_P(ix, iz) ((gc).sz[(iz) * (gc).nx + (ix) + ((gc).nx) * ((gc).nz) * pre])
+#define TXZ_P(ix, iz) ((gc).txz[(iz) * ((gc).nx - 1) + (ix) + ((gc).nx - 1) * ((gc).nz - 1) * pre])
 
 enum MemoryType {
     HOST_MEM = 0,

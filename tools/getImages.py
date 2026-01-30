@@ -5,11 +5,10 @@ from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import multiprocessing as mp
 
-# 全局设置，避免重复计算
-GAIN = 1e6
-STRESS_RANGE = (-0.02, 0.02)      # 应力分量范围
+GAIN = 1e6                          # 数值增益
+STRESS_RANGE = (-0.02, 0.02)        # 应力分量范围
 STRESS_TXZ_RANGE = (-0.005, 0.005)  # txz分量单独的范围
-VELOCITY_RANGE = (-2e-9, 2e-9)    # 速度分量范围
+VELOCITY_RANGE = (-2e-9, 2e-9)      # 速度分量范围
 
 # 获取项目根目录
 script_dir = Path(__file__).parent  # tools目录
@@ -34,7 +33,6 @@ def get_grid_params():
     
     aspect_ratio = nx / nz
     
-    # 网格尺寸字典
     grid_sizes = {
         "sx": (nz, nx),
         "sz": (nz, nx),
@@ -78,8 +76,8 @@ def process_single_file(args):
         ax.set_xlabel('X Grid Points', fontsize=10)
         ax.set_ylabel('Z Grid Points', fontsize=10)
         
-        # 保存为jpg
-        output_file = output_dir / component / f"{bin_file.stem}.jpg"
+        # 保存
+        output_file = output_dir / component / f"{bin_file.stem}.png"
         plt.savefig(output_file, dpi=150, bbox_inches='tight', 
                    facecolor='white', edgecolor='none', pad_inches=0.1)
         plt.close(fig)
@@ -145,7 +143,7 @@ def visualize_snapshots_parallel():
     print(f"\n开始并行处理 {len(tasks)} 个文件...")
     
     # 根据CPU核心数设置进程数，但不超过任务数
-    num_processes = min(mp.cpu_count(), len(tasks))
+    num_processes = min(mp.cpu_count() - 2, len(tasks))
     print(f"使用 {num_processes} 个进程并行处理")
     
     completed_count = 0
