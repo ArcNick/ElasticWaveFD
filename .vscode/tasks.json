@@ -10,6 +10,7 @@
                 "-g", "-G",
                 "-O2",
                 "-I", "${workspaceFolder}/include",
+                "src/*.c",
                 "src/*.cu",
                 "-o", "bin/main_debug",
                 "-std=c++17"

@@ -1,100 +1,134 @@
-#include "common.cuh"
-#include "cpml.cuh"
-#include "update.cuh"
-#include "output.cuh"
-#include "differentiate.cuh"
-#include <memory>
-const float gain = 1e6;
+#include <vector>
+#include <iostream>
+#include "kernels.cuh"
+#include "params.cuh"
+
+float buffer[2048];
+
+void output_snapshots(GridManager &gm, int it, float dt, int time);
+void output_record(const GridManager &gm, int z, FILE *fp, int time);
+
 
 int main() {
-    Params par;
-    par.read("models/params.json");
+    GridManager gm("models/models.json");
+    Params params("models/params.json");
+    Cpml cpml("models/params.json");
+    gm.memcpy_model_h2d();
     
-    Grid_Model gm_device(par.nx, par.nz);
-    gm_device.read("models/params.json");
-    
-    Grid_Core gc_readin(par.nx, par.nz, HOST_MEM);
-    Cpml cpml(par.view(), "models/cpml.json");
-    
-    printf("网格尺寸: %d x %d\n", par.nx, par.nz);
-    printf("空间步长: dx = %f, dz = %f\n", par.dx, par.dz);
-    printf("时间步长: dt = %f\n", par.dt);
-    printf("总时间步: %d\n", par.nt);
-    printf("震源频率: %f Hz\n", par.fpeak);
-    printf("震源位置: (%d, %d)\n", par.posx, par.posz);
+    std::unique_ptr<float[]> wavelet = params.ricker_wavelet();
+    const int NUM_STREAM = gm.fine_info.size() + 1;
 
-    // 检查CFL条件
-    float dt_max = 0.5f * std::min(par.dx, par.dz) / cpml.cp_max;
-    printf("CFL: 最大dt = %f, 实际dt = %f\n", dt_max, par.dt);
-    if (par.dt > dt_max) {
-        printf("不符合CFL条件\n");
-        exit(1);
+    cudaStream_t stream_co;
+    cudaStreamCreate(&stream_co);
+    std::vector<cudaStream_t> stream_fi(NUM_STREAM);
+    for (int i = 0; i < NUM_STREAM; ++i) {
+        cudaStreamCreate(&stream_fi[i]);
     }
 
-    // 检查PPW条件
-    float ppw = 1900.0f / (2.1 * par.fpeak * par.dx);
-    printf("PPW: 最小ppw = 7, 实际ppw = %f\n", ppw);
-    
-    // 初始化核心计算网格
-    Grid_Core gc_host(par.nx, par.nz, HOST_MEM);
-    Grid_Core gc_device(par.nx, par.nz, DEVICE_MEM);
+    system("mkdir -p ./output/record");
+    system("mkdir -p ./output/vx");
+    system("mkdir -p ./output/vz");
+    system("mkdir -p ./output/sx");
+    system("mkdir -p ./output/sz");
+    system("mkdir -p ./output/txz");
 
-    // 生成雷克子波
-    std::unique_ptr<float[]> wl = ricker_wavelet(par.nt, par.dt, par.fpeak);
-    
-    Snapshot sshot(gc_host);
-    for (int it = 0; it < par.nt; it++) {
-        dim3 gridSize((par.nx + 15) / 16, (par.nz + 15) / 16);
-        dim3 blockSize(16, 16);
+    FILE *fp = fopen("output/record/record_vz.bin", "wb");
+    if (!fp) {
+        std::cerr << "Failed to open output file for recording." << std::endl;
+        return -1;
+    }
 
+    for (int it = 0; it < params.nt; it++) {
+        
         int cur = it & 1;
-        int pre = cur ^ 1;
-
-        // 应力更新
-        update_stress<<<gridSize, blockSize>>>(
-            gc_device.view(), gm_device.view(), cpml.view(), 
-            par.dx, par.dz, par.dt, cur, pre
-        );
-
-        // 加入震源
-        apply_source<<<1, 1>>>(
-            gc_device.view(), wl[it] * gain, par.posx, par.posz, cur
-        );
+        dim3 grid_co((gm.nx_coarse + 15) / 16, (gm.nz_coarse + 15) / 16);
+        dim3 block_co(16, 16);
+        update_stress_coarse<<<grid_co, block_co, 0, stream_co>>>(gm.core_d, gm.model_d, cpml.psi_vel, cur);
+        for (int i = 0; i < gm.fine_info.size(); i++) {
+            dim3 grid_fi((gm.fine_info[i].lenx + 15) / 16, (gm.fine_info[i].lenz + 15) / 16);
+            dim3 block_fi(16, 16);
+            update_stress_fine<<<grid_fi, block_fi, 0, stream_fi[i]>>>(gm.core_d, gm.model_d, cur, i);
+        }
+        apply_source<<<1, 1, 0, stream_co>>>(gm.core_d, wavelet[it], cur);
+        update_velocity_coarse<<<grid_co, block_co, 0, stream_co>>>(gm.core_d, gm.model_d, cpml.psi_str, cur);
         
-        // ψ_stress 更新
-        cpml_update_psi_stress<<<gridSize, blockSize>>>(
-            gc_device.view(), cpml.view(), 
-            par.dx, par.dz, par.dt, cur
-        );
+        for (int i = 0; i < gm.fine_info.size(); i++) {
+            dim3 grid_fi((gm.fine_info[i].lenx + 15) / 16, (gm.fine_info[i].lenz + 15) / 16);
+            dim3 block_fi(16, 16);
 
-        // 速度更新
-        update_velocity<<<gridSize, blockSize>>>(
-            gc_device.view(), gm_device.view(), cpml.view(), 
-            par.dx, par.dz, par.dt, cur, pre
-        );
-        
-        // ψ_vel 更新
-        cpml_update_psi_vel<<<gridSize, blockSize>>>(
-            gc_device.view(), cpml.view(), 
-            par.dx, par.dz, par.dt, cur
-        );
+            update_velocity_fine<<<grid_fi, block_fi, 0, stream_fi[i]>>>(gm.core_d, gm.model_d, cur, i);
+        }
 
-        // 自由边界
-        // apply_free_boundary<<<1, std::max(par.nx, par.nz)>>>(gc_device.view(), cur);
-        cudaDeviceSynchronize();
-        
-        if (it % 100 == 0) {
-            printf("\r%%%0.2f finished.", 1.0f * it / par.nt * 100);
+        cudaStreamSynchronize(stream_co);
+        for (int i = 0; i < gm.fine_info.size(); i++) {
+            cudaStreamSynchronize(stream_fi[i]);
+        }
+
+        output_record(gm, params.posz, fp, cur);
+
+        if (it % params.snapshot == 0) {
+            output_snapshots(gm, it, params.dt, cur);
+            printf("finished %0.2f%%\r", 100.0 * it / params.nt);
             fflush(stdout);
         }
-
-        // 输出波场快照
-        if (it % par.snapshot == 0) {
-            // 拷贝到 host 输出波场快照
-            gc_host.memcpy_to_host_from(gc_device);
-            sshot.output(it, par.dt, cur);
-        }
     }
-    printf("\r%%100.00 finished.\n");
-    fflush(stdout);
+    
+    printf("finished 100.00%%\n");
+    fclose(fp);
+    cudaStreamDestroy(stream_co);
+    for (int i = 0; i < NUM_STREAM; ++i) {
+        cudaStreamDestroy(stream_fi[i]);
+    }
+}
+
+void output_snapshots(GridManager &gm, int it, float dt, int time) {
+    float time_sec = it * dt;
+    int time_ms = static_cast<int>(time_sec * 1000);
+    
+    char buf[32];
+
+    snprintf(buf, sizeof(buf), "output/vx/vx_%05dms.bin", time_ms);
+    std::string filename_vx = buf;
+    
+    snprintf(buf, sizeof(buf), "output/vz/vz_%05dms.bin", time_ms);
+    std::string filename_vz = buf;
+
+    snprintf(buf, sizeof(buf), "output/sx/sx_%05dms.bin", time_ms);
+    std::string filename_sx = buf;
+
+    snprintf(buf, sizeof(buf), "output/sz/sz_%05dms.bin", time_ms);
+    std::string filename_sz = buf;
+    
+    snprintf(buf, sizeof(buf), "output/txz/txz_%05dms.bin", time_ms);
+    std::string filename_txz = buf;
+
+    gm.memcpy_core_d2h(time);
+    
+    FILE *fp_vx = fopen(filename_vx.c_str(), "wb");
+    FILE *fp_vz = fopen(filename_vz.c_str(), "wb");
+    FILE *fp_sx = fopen(filename_sx.c_str(), "wb");
+    FILE *fp_sz = fopen(filename_sz.c_str(), "wb");
+    FILE *fp_txz = fopen(filename_txz.c_str(), "wb");
+
+    fwrite(gm.core_h.vx, sizeof(float), gm.offset_time_vx, fp_vx);
+    fwrite(gm.core_h.vz, sizeof(float), gm.offset_time_vz, fp_vz);
+    fwrite(gm.core_h.sx, sizeof(float), gm.offset_time_sx, fp_sx);
+    fwrite(gm.core_h.sz, sizeof(float), gm.offset_time_sz, fp_sz);
+    fwrite(gm.core_h.txz, sizeof(float), gm.offset_time_txz, fp_txz);
+
+    fclose(fp_vx);
+    fclose(fp_vz);
+    fclose(fp_sx);
+    fclose(fp_sz);
+    fclose(fp_txz);
+}
+
+void output_record(const GridManager &gm, int z, FILE *fp, int time) {
+    cudaMemcpy(
+        buffer, 
+        gm.core_d.vx + time * gm.offset_time_sx + z * (gm.nx_coarse - 1), 
+        sizeof(float) * (gm.nx_coarse - 1), 
+        cudaMemcpyDeviceToHost
+    );
+    fwrite(buffer, sizeof(float), gm.nx_coarse - 1, fp);
 }

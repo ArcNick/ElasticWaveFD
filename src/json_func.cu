@@ -1,6 +1,6 @@
+#include "json_func.cuh"
 #include <iostream>
 #include <fstream>
-#include <string>
 
 std::string readJsonFile(const std::string& filename) {
     std::ifstream file(filename, std::ios::binary);

@@ -1,147 +1,33 @@
-#include "cJSON.h"
-#include "common.cuh"
-#include "differentiate.cuh"
 #include "cpml.cuh"
+#include "cJSON.h"
+#include "params.cuh"
+#include "json_func.cuh"
 #include <iostream>
 #include <cmath>
-#include <string>
 
-Cpml::Cpml(Params::View par, const std::string &file) {
-    read(file);
-    nx = par.nx;
-    nz = par.nz;
-    mem_location = DEVICE_MEM;
-    L = thickness * par.dx;
+extern float dx_host_coarse;
+extern float dz_host_coarse;
+extern int nx_host_coarse;
+extern int nz_host_coarse;
 
-    cudaMalloc(&alpha_int, thickness * sizeof(float));
-    cudaMalloc(&damp_int, thickness * sizeof(float));
-    cudaMalloc(&a_int, thickness * sizeof(float));
-    cudaMalloc(&b_int, thickness * sizeof(float));
-    cudaMalloc(&kappa_int, thickness * sizeof(float));
-    cudaMalloc(&alpha_half, thickness * sizeof(float));
-    cudaMalloc(&damp_half, thickness * sizeof(float));
-    cudaMalloc(&a_half, thickness * sizeof(float));
-    cudaMalloc(&b_half, thickness * sizeof(float));
-    cudaMalloc(&kappa_half, thickness * sizeof(float));
-    cudaMalloc(&psi_vx_x, (nx - 1) * nz * sizeof(float));
-    cudaMalloc(&psi_vx_z, (nx - 1) * nz * sizeof(float));
-    cudaMalloc(&psi_vz_x, nx * (nz - 1) * sizeof(float));
-    cudaMalloc(&psi_vz_z, nx * (nz - 1) * sizeof(float));
-    cudaMalloc(&psi_sx_x, nx * nz * sizeof(float));
-    cudaMalloc(&psi_sx_z, nx * nz * sizeof(float));
-    cudaMalloc(&psi_sz_x, nx * nz * sizeof(float));
-    cudaMalloc(&psi_sz_z, nx * nz * sizeof(float));
-    cudaMalloc(&psi_txz_x, (nx - 1) * (nz - 1) * sizeof(float));
-    cudaMalloc(&psi_txz_z, (nx - 1) * (nz - 1) * sizeof(float));
+__constant__ int thickness_d;
+__constant__ float a_int_d[CPMLMAX];
+__constant__ float a_half_d[CPMLMAX];
+__constant__ float b_int_d[CPMLMAX];
+__constant__ float b_half_d[CPMLMAX];
+__constant__ float kappa_int_d[CPMLMAX];
+__constant__ float kappa_half_d[CPMLMAX];
 
-    cudaMemset(alpha_int, 0, thickness * sizeof(float));
-    cudaMemset(damp_int, 0, thickness * sizeof(float));
-    cudaMemset(a_int, 0, thickness * sizeof(float));
-    cudaMemset(b_int, 0, thickness * sizeof(float));
-    cudaMemset(kappa_int, 0, thickness * sizeof(float));
-    cudaMemset(alpha_half, 0, thickness * sizeof(float));
-    cudaMemset(damp_half, 0, thickness * sizeof(float));
-    cudaMemset(a_half, 0, thickness * sizeof(float));
-    cudaMemset(b_half, 0, thickness * sizeof(float));
-    cudaMemset(kappa_half, 0, thickness * sizeof(float));
-    cudaMemset(psi_vx_x, 0, (nx - 1) * nz * sizeof(float));
-    cudaMemset(psi_vx_z, 0, (nx - 1) * nz * sizeof(float));
-    cudaMemset(psi_vz_x, 0, nx * (nz - 1) * sizeof(float));
-    cudaMemset(psi_vz_z, 0, nx * (nz - 1) * sizeof(float));
-    cudaMemset(psi_sx_x, 0, nx * nz * sizeof(float));
-    cudaMemset(psi_sx_z, 0, nx * nz * sizeof(float));
-    cudaMemset(psi_sz_x, 0, nx * nz * sizeof(float));
-    cudaMemset(psi_sz_z, 0, nx * nz * sizeof(float));
-    cudaMemset(psi_txz_x, 0, (nx - 1) * (nz - 1) * sizeof(float));
-    cudaMemset(psi_txz_z, 0, (nx - 1) * (nz - 1) * sizeof(float));
-
-    init(par);
+Cpml::Cpml(const std::string &file) {
+    load(file);
+    build_constant();
 }
 
 Cpml::~Cpml() {
-    if (alpha_int) {
-        cudaFree(alpha_int);
-        alpha_int = nullptr;
-    }
-    if (damp_int) {
-        cudaFree(damp_int);
-        damp_int = nullptr;
-    }
-    if (a_int) {
-        cudaFree(a_int);
-        a_int = nullptr;
-    }
-    if (b_int) {
-        cudaFree(b_int);
-        b_int = nullptr;
-    }
-    if (kappa_int) {
-        cudaFree(kappa_int);
-        kappa_int = nullptr;
-    }
-    if (alpha_half) {
-        cudaFree(alpha_half);
-        alpha_half = nullptr;
-    }
-    if (damp_half) {
-        cudaFree(damp_half);
-        damp_half = nullptr;
-    }
-    if (a_half) {
-        cudaFree(a_half);
-        a_half = nullptr;
-    }
-    if (b_half) {
-        cudaFree(b_half);
-        b_half = nullptr;
-    }
-    if (kappa_half) {
-        cudaFree(kappa_half);
-        kappa_half = nullptr;
-    }
-    if (psi_vx_x) {
-        cudaFree(psi_vx_x);
-        psi_vx_x = nullptr;
-    }
-    if (psi_vx_z) {
-        cudaFree(psi_vx_z);
-        psi_vx_z = nullptr;
-    }
-    if (psi_vz_x) {
-        cudaFree(psi_vz_x);
-        psi_vz_x = nullptr;
-    }
-    if (psi_vz_z) {
-        cudaFree(psi_vz_z);
-        psi_vz_z = nullptr;
-    }
-    if (psi_sx_x) {
-        cudaFree(psi_sx_x);
-        psi_sx_x = nullptr;
-    }
-    if (psi_sx_z) {
-        cudaFree(psi_sx_z);
-        psi_sx_z = nullptr;
-    }
-    if (psi_sz_x) {
-        cudaFree(psi_sz_x);
-        psi_sz_x = nullptr;
-    }
-    if (psi_sz_z) {
-        cudaFree(psi_sz_z);
-        psi_sz_z = nullptr;
-    }
-    if (psi_txz_x) {
-        cudaFree(psi_txz_x);
-        psi_txz_x = nullptr;
-    }
-    if (psi_txz_z) {
-        cudaFree(psi_txz_z);
-        psi_txz_z = nullptr;
-    }
+    mem_release();
 }
 
-void Cpml::read(const std::string &file) {
+void Cpml::load(const std::string &file) {
     const std::string json_content = readJsonFile(file);
     cJSON *root = cJSON_Parse(json_content.c_str());
     if (root == nullptr) {
@@ -149,92 +35,134 @@ void Cpml::read(const std::string &file) {
         exit(1);
     }
 
-    thickness = cJSON_GetObjectItem(root, "thickness")->valueint;
-    N = cJSON_GetObjectItem(root, "N")->valuedouble;
-    cp_max = cJSON_GetObjectItem(root, "cp_max")->valuedouble;
-    Rc = cJSON_GetObjectItem(root, "Rc")->valuedouble;
-    kappa0 = cJSON_GetObjectItem(root, "kappa0")->valuedouble;
+    cJSON *base = cJSON_GetObjectItem(root, "base");
+    cJSON *pml = cJSON_GetObjectItem(root, "cpml");
+
+    thickness = cJSON_GetObjectItem(pml, "thickness")->valueint;
+    NPOW = cJSON_GetObjectItem(pml, "N")->valuedouble;
+    cp_max = cJSON_GetObjectItem(pml, "cp_max")->valuedouble;
+    Rc = cJSON_GetObjectItem(pml, "Rc")->valuedouble;
+    kappa0 = cJSON_GetObjectItem(pml, "kappa0")->valuedouble;
     
-    cJSON_Delete(root);
     std::cout << "CPML parameters loaded.\n";
-}
 
-__global__ void cpml_init_params(
-    Cpml::View cpml, float dx, float dz, float dt
-) {
-    int i = threadIdx.x;
-    if (i < cpml.thickness) {
+    L = thickness * dx_host_coarse;
+    damp0 = -(NPOW + 1) * cp_max * log(Rc) / (2 * L);
+    alpha0 = M_PI * cJSON_GetObjectItem(base, "fpeak")->valuedouble;
+
+    mem_allocate(nx_host_coarse, nz_host_coarse);
+    
+    float dt = cJSON_GetObjectItem(base, "dt")->valuedouble;
+    for (int i = 0; i < thickness; i++) {
         // 整网格点
-        float x_int = 1.0 * i / cpml.thickness;
-        cpml.damp_int[i] = cpml.damp0 * powf(x_int, cpml.N);
-        cpml.alpha_int[i] = cpml.alpha0 * (1.0f - x_int);
-        cpml.kappa_int[i] = 1.0f + (cpml.kappa0 - 1.0f) * powf(x_int, cpml.N);
+        float x_int = 1.0 * i / thickness;
+        damp_int[i] = damp0 * powf(x_int, NPOW);
+        alpha_int[i] = alpha0 * (1.0f - x_int);
+        kappa_int[i] = 1.0f + (kappa0 - 1.0f) * powf(x_int, NPOW);
 
-        cpml.b_int[i] = exp(
-            -(cpml.damp_int[i] / cpml.kappa_int[i] + cpml.alpha_int[i]) * dt
+        b_int[i] = exp(
+            -(damp_int[i] / kappa_int[i] + alpha_int[i]) * dt
         );
-        cpml.a_int[i] = cpml.damp_int[i] * (cpml.b_int[i] - 1) / (
-            cpml.kappa_int[i] * (cpml.damp_int[i] + cpml.kappa_int[i] * cpml.alpha_int[i])
+        a_int[i] = damp_int[i] * (b_int[i] - 1) / (
+            kappa_int[i] * (damp_int[i] + kappa_int[i] * alpha_int[i])
         );
-    }
-    if (i < cpml.thickness - 1) {
+        
         // 半网格点
-        float x_half = (i + 0.5f) / (cpml.thickness);
-        cpml.damp_half[i] = cpml.damp0 * powf(x_half, cpml.N);
-        cpml.alpha_half[i] = cpml.alpha0 * (1.0f - x_half);
-        cpml.kappa_half[i] = 1.0f + (cpml.kappa0 - 1.0f) * powf(x_half, cpml.N);
+        if (i == thickness - 1) break;
+        float x_half = (i + 0.5f) / (thickness);
+        damp_half[i] = damp0 * powf(x_half, NPOW);
+        alpha_half[i] = alpha0 * (1.0f - x_half);
+        kappa_half[i] = 1.0f + (kappa0 - 1.0f) * powf(x_half, NPOW);
 
-        cpml.b_half[i] = exp(
-            -(cpml.damp_half[i] / cpml.kappa_half[i] + cpml.alpha_half[i]) * dt
+        b_half[i] = exp(
+            -(damp_half[i] / kappa_half[i] + alpha_half[i]) * dt
         );
-        cpml.a_half[i] = cpml.damp_half[i] * (cpml.b_half[i] - 1) / (
-            cpml.kappa_half[i] * (cpml.damp_half[i] + cpml.kappa_half[i] * cpml.alpha_half[i])
+        a_half[i] = damp_half[i] * (b_half[i] - 1) / (
+            kappa_half[i] * (damp_half[i] + kappa_half[i] * alpha_half[i])
         );
     }
+    cJSON_Delete(root);
 }
 
-void Cpml::init(Params::View par) {
-    damp0 = -(N + 1) * cp_max * log(Rc) / (2 * L);
-    alpha0 = M_PI * par.fpeak;
-    cpml_init_params<<<1, thickness>>>(
-        view(), par.dx, par.dz, par.dt
-    );
+void Cpml::mem_allocate(int lx, int lz) {
+    alpha_int = new float[thickness]();
+    alpha_half = new float[thickness - 1]();
+    damp_int = new float[thickness]();
+    damp_half = new float[thickness - 1]();
+    a_int = new float[thickness]();
+    a_half = new float[thickness - 1]();
+    b_int = new float[thickness]();
+    b_half = new float[thickness - 1]();
+    kappa_int = new float[thickness]();
+    kappa_half = new float[thickness - 1]();
+
+    cudaMalloc(&psi_vel.psi_vx_x, (lx - 1) * lz * sizeof(float));
+    cudaMalloc(&psi_vel.psi_vx_z, (lx - 1) * lz * sizeof(float));
+    cudaMalloc(&psi_vel.psi_vz_x, lx * (lz - 1) * sizeof(float));
+    cudaMalloc(&psi_vel.psi_vz_z, lx * (lz - 1) * sizeof(float));
+    cudaMalloc(&psi_str.psi_sx_x, lx * lz * sizeof(float));
+    cudaMalloc(&psi_str.psi_sx_z, lx * lz * sizeof(float));
+    cudaMalloc(&psi_str.psi_sz_x, lx * lz * sizeof(float));
+    cudaMalloc(&psi_str.psi_sz_z, lx * lz * sizeof(float));
+    cudaMalloc(&psi_str.psi_txz_x, (lx - 1) * (lz - 1) * sizeof(float));
+    cudaMalloc(&psi_str.psi_txz_z, (lx - 1) * (lz - 1) * sizeof(float));
+
+    cudaMemset(psi_vel.psi_vx_x, 0, (lx - 1) * lz * sizeof(float));
+    cudaMemset(psi_vel.psi_vx_z, 0, (lx - 1) * lz * sizeof(float));
+    cudaMemset(psi_vel.psi_vz_x, 0, lx * (lz - 1) * sizeof(float));
+    cudaMemset(psi_vel.psi_vz_z, 0, lx * (lz - 1) * sizeof(float));
+    cudaMemset(psi_str.psi_sx_x, 0, lx * lz * sizeof(float));
+    cudaMemset(psi_str.psi_sx_z, 0, lx * lz * sizeof(float));
+    cudaMemset(psi_str.psi_sz_x, 0, lx * lz * sizeof(float));
+    cudaMemset(psi_str.psi_sz_z, 0, lx * lz * sizeof(float));
+    cudaMemset(psi_str.psi_txz_x, 0, (lx - 1) * (lz - 1) * sizeof(float));
+    cudaMemset(psi_str.psi_txz_z, 0, (lx - 1) * (lz - 1) * sizeof(float));
 }
 
-__device__ int get_cpml_idx_x_int(int lx, int ix, int thickness) {
-    int res = -1;
-    int arr[] = {ix - 3, lx - 1 - ix - 4};
-    for (int i = 0; i < 2; i++) {
-        if (0 <= arr[i] && arr[i] < thickness) {
-            res = arr[i];
-            break;
-        }
-    }
-    return thickness - 1 - res;
-}
-__device__ int get_cpml_idx_z_int(int lz, int iz, int thickness) {
-    int res = -1;
-    int arr[] = {iz - 3, lz - 1 - iz - 4};
-    for (int i = 0; i < 2; i++) {
-        if (0 <= arr[i] && arr[i] < thickness) {
-            res = arr[i];
-            break;
-        }
-    }
-    return thickness - 1 - res;
+void Cpml::build_constant() {
+    cudaMemcpyToSymbol(thickness_d, &thickness, sizeof(int), 0, cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(a_int_d, a_int, thickness * sizeof(float), 0, cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(a_half_d, a_half, (thickness - 1) * sizeof(float), 0, cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(b_int_d, b_int, thickness * sizeof(float), 0, cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(b_half_d, b_half, (thickness - 1) * sizeof(float), 0, cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(kappa_int_d, kappa_int, thickness * sizeof(float), 0, cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(kappa_half_d, kappa_half, (thickness - 1) * sizeof(float), 0, cudaMemcpyHostToDevice);
 }
 
-__device__ int get_cpml_idx_x_half(int lx, int ix, int thickness) {
-    int res = -1;
-    int arr[] = {ix - 4, lx - 1 - ix - 3};
-    for (int i = 0; i < 2; i++) {
-        if (0 <= arr[i] && arr[i] < thickness) {
-            res = arr[i];
-            break;
-        }
-    }
-    return thickness - 1 - res;
+void Cpml::mem_release() {
+    delete[] alpha_int;
+    delete[] alpha_half;
+    delete[] damp_int;
+    delete[] damp_half;
+    delete[] a_int;
+    delete[] a_half;
+    delete[] b_int;
+    delete[] b_half;
+    delete[] kappa_int;
+    delete[] kappa_half;
+    cudaFree(psi_vel.psi_vx_x); 
+    cudaFree(psi_vel.psi_vx_z);
+    cudaFree(psi_vel.psi_vz_x);
+    cudaFree(psi_vel.psi_vz_z);
+    cudaFree(psi_str.psi_sx_x);
+    cudaFree(psi_str.psi_sx_z);
+    cudaFree(psi_str.psi_sz_x);
+    cudaFree(psi_str.psi_sz_z);
+    cudaFree(psi_str.psi_txz_x);
+    cudaFree(psi_str.psi_txz_z);
 }
+
+// __device__ int get_cpml_idx_x_half(int lx, int ix, int thickness) {
+//     int res = -1;
+//     int arr[] = {ix - 4, lx - 1 - ix - 3};
+//     for (int i = 0; i < 2; i++) {
+//         if (0 <= arr[i] && arr[i] < thickness) {
+//             res = arr[i];
+//             break;
+//         }
+//     }
+//     return thickness - 1 - res;
+// }
 __device__ int get_cpml_idx_z_half(int lz, int iz, int thickness) {
     int res = -1;
     int arr[] = {iz - 4, lz - 1 - iz - 3};
@@ -247,93 +175,28 @@ __device__ int get_cpml_idx_z_half(int lz, int iz, int thickness) {
     return thickness - 1 - res;    
 }
 
-__global__ void cpml_update_psi_vel(
-    Grid_Core::View gc, Cpml::View cpml, float dx, float dz, float dt, int cur
-) {
-    int ix = blockIdx.x * blockDim.x + threadIdx.x;
-    int iz = blockIdx.y * blockDim.y + threadIdx.y;
+// __device__ int get_cpml_idx_x_int(int lx, int ix, int thickness) {
+//     int res = -1;
+//     if ()
+//     int arr[] = {ix - 3, lx - 1 - ix - 4};
+//     for (int i = 0; i < 2; i++) {
+//         if (0 <= arr[i] && arr[i] < thickness) {
+//             res = arr[i];
+//             break;
+//         }
+//     }
+//     return thickness - 1 - res;
+// }
 
-    int nx = cpml.nx, nz = cpml.nz;
-    int thickness = cpml.thickness;
+// __device__ int get_cpml_idx_z_int(int lz, int iz, int thickness) {
+//     int res = -1;
+//     int arr[] = {iz - 3, lz - 1 - iz - 4};
+//     for (int i = 0; i < 2; i++) {
+//         if (0 <= arr[i] && arr[i] < thickness) {
+//             res = arr[i];
+//             break;
+//         }
+//     }
+//     return thickness - 1 - res;
+// }
 
-    if (ix < 3 || ix >= nx - 4 || iz < 3 || iz >= nz - 4) {
-        return;
-    }
-    int pml_idx_x_int = get_cpml_idx_x_int(nx, ix, thickness);
-    int pml_idx_z_int = get_cpml_idx_z_int(nz, iz, thickness);
-    int pml_idx_x_half = get_cpml_idx_x_half(nx - 1, ix, thickness - 1);
-    int pml_idx_z_half = get_cpml_idx_z_half(nz - 1, iz, thickness - 1);
-
-    if (pml_idx_x_int < thickness) {
-        float a_int = cpml.a_int[pml_idx_x_int];
-        float b_int = cpml.b_int[pml_idx_x_int];
-        float dvz_dx = Dx_int_8th(gc.vz, ix, iz, nx, nz - 1, dx, cur);
-        PVZ_X(ix, iz) = b_int * PVZ_X(ix, iz) + a_int * dvz_dx;
-    }
-    if (pml_idx_z_int < thickness) {
-        float a_int = cpml.a_int[pml_idx_z_int];
-        float b_int = cpml.b_int[pml_idx_z_int];
-        float dvx_dz = Dz_int_8th(gc.vx, ix, iz, nx - 1, nz, dz, cur);
-        PVX_Z(ix, iz) = b_int * PVX_Z(ix, iz) + a_int * dvx_dz;
-    } 
-    if (pml_idx_x_half < thickness - 1) {
-        float a_half = cpml.a_half[pml_idx_x_half];
-        float b_half = cpml.b_half[pml_idx_x_half];
-        float dvx_dx = (ix <= 3 ? 0 : Dx_half_8th(gc.vx, ix, iz, nx - 1, nz, dx, cur));
-        PVX_X(ix, iz) = b_half * PVX_X(ix, iz) + a_half * dvx_dx;
-    }
-    if (pml_idx_z_half < thickness - 1) {
-        float a_half = cpml.a_half[pml_idx_z_half];
-        float b_half = cpml.b_half[pml_idx_z_half];
-        float dvz_dz = (iz <= 3 ? 0 : Dz_half_8th(gc.vz, ix, iz, nx, nz - 1, dz, cur));
-        PVZ_Z(ix, iz) = b_half * PVZ_Z(ix, iz) + a_half * dvz_dz;
-    }
-}
-
-__global__ void cpml_update_psi_stress(
-    Grid_Core::View gc, Cpml::View cpml, float dx, float dz, float dt, int cur
-) {
-    int ix = blockIdx.x * blockDim.x + threadIdx.x;
-    int iz = blockIdx.y * blockDim.y + threadIdx.y;
-
-    int nx = cpml.nx, nz = cpml.nz;
-    int thickness = cpml.thickness;
-
-    if (ix < 3 || ix >= nx - 4 || iz < 3 || iz >= nz - 4) {
-        return;
-    }
-
-    int pml_idx_x_int = get_cpml_idx_x_int(nx, ix, thickness);
-    int pml_idx_z_int = get_cpml_idx_z_int(nz, iz, thickness);
-    int pml_idx_x_half = get_cpml_idx_x_half(nx - 1, ix, thickness - 1);
-    int pml_idx_z_half = get_cpml_idx_z_half(nz - 1, iz, thickness - 1);
-
-    if (pml_idx_x_int < thickness) { 
-        float a_int = cpml.a_int[pml_idx_x_int];
-        float b_int = cpml.b_int[pml_idx_x_int];
-        float dsx_dx = Dx_int_8th(gc.sx, ix, iz, nx, nz, dx, cur);
-        float dsz_dx = Dx_int_8th(gc.sz, ix, iz, nx, nz, dx, cur);
-        PSX_X(ix, iz) = b_int * PSX_X(ix, iz) + a_int * dsx_dx;
-        PSZ_X(ix, iz) = b_int * PSZ_X(ix, iz) + a_int * dsz_dx;
-    }
-    if (pml_idx_z_int < thickness) {
-        float a_int = cpml.a_int[pml_idx_z_int];
-        float b_int = cpml.b_int[pml_idx_z_int];
-        float dsx_dz = Dz_int_8th(gc.sx, ix, iz, nx, nz, dz, cur);
-        float dsz_dz = Dz_int_8th(gc.sz, ix, iz, nx, nz, dz, cur);
-        PSX_Z(ix, iz) = b_int * PSX_Z(ix, iz) + a_int * dsx_dz;
-        PSZ_Z(ix, iz) = b_int * PSZ_Z(ix, iz) + a_int * dsz_dz;
-    }
-    if (pml_idx_x_half < thickness - 1) {
-        float a_half = cpml.a_half[pml_idx_x_half];
-        float b_half = cpml.b_half[pml_idx_x_half];
-        float dtxz_dx = (ix <= 3 ? 0 : Dx_half_8th(gc.txz, ix, iz, nx - 1, nz - 1, dx, cur));
-        PTXZ_X(ix, iz) = b_half * PTXZ_X(ix, iz) + a_half * dtxz_dx;
-    }
-    if (pml_idx_z_half < thickness - 1) {
-        float a_half = cpml.a_half[pml_idx_z_half];
-        float b_half = cpml.b_half[pml_idx_z_half];
-        float dtxz_dz = (iz <= 3 ? 0 : Dz_half_8th(gc.txz, ix, iz, nx - 1, nz - 1, dz, cur));
-        PTXZ_Z(ix, iz) = b_half * PTXZ_Z(ix, iz) + a_half * dtxz_dz;
-    }
-}

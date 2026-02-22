@@ -1,21 +1,18 @@
 {
-  "fpeak": 30.0,
-  "nx": 500,
-  "nz": 500,
-  "dx": 2.0,
-  "dz": 2.0,
-  "nt": 5001,
-  "dt": 0.0001,
-  "posx": 250,
-  "posz": 250,
-  "snapshot": 200,
-  "coarse_model": {
-    "vp": "models/coarse/vp.bin",
-    "vs": "models/coarse/vs.bin",
-    "rho": "models/coarse/rho.bin",
-    "C11": "models/coarse/C11.bin",
-    "C13": "models/coarse/C13.bin",
-    "C33": "models/coarse/C33.bin",
-    "C55": "models/coarse/C55.bin"
+  "base": {
+    "fpeak": 20.0,
+    "dt": 0.0005,
+    "nt": 4000,
+    "posx": 125,
+    "posz": 125,
+    "snapshot": 100
+  },
+  "cpml": {
+    "thickness": 10,
+    "N": 2,
+    "cp_max": 3000.0,
+    "Rc": 0.001,
+    "kappa0": 1.0,
+    "fpeak": 20.0
   }
 }

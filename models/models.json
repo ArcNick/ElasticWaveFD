@@ -1,0 +1,27 @@
+{
+  "coarse": {
+    "nx": 500,
+    "nz": 500,
+    "dx": 1.0,
+    "dz": 1.0,
+    "rho": "models/coarse/rho.bin",
+    "C11": "models/coarse/C11.bin",
+    "C13": "models/coarse/C13.bin",
+    "C33": "models/coarse/C33.bin",
+    "C55": "models/coarse/C55.bin"
+  },
+  "fine": [
+    {
+      "x_start": 420,
+      "x_end": 427,
+      "z_start": 420,
+      "z_end": 427,
+      "N": 3,
+      "rho": "models/fine/0/rho.bin",
+      "C11": "models/fine/0/C11.bin",
+      "C13": "models/fine/0/C13.bin",
+      "C33": "models/fine/0/C33.bin",
+      "C55": "models/fine/0/C55.bin"
+    }
+  ]
+}
