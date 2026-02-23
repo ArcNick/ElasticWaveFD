@@ -70,7 +70,23 @@ public:
     void memcpy_model_h2d();
     void memcpy_core_d2h(int time);
 
+        // 用于保存 n 数组纹理对象
+    cudaTextureObject_t tex_vx_n;
+    cudaTextureObject_t tex_vz_n;
+    cudaTextureObject_t tex_sx_n;
+    cudaTextureObject_t tex_sz_n;
+    cudaTextureObject_t tex_txz_n;
+
+    // 用于保存 mask 纹理对象
+    cudaTextureObject_t tex_vx_mask;
+    cudaTextureObject_t tex_vz_mask;
+    cudaTextureObject_t tex_sx_mask;
+    cudaTextureObject_t tex_sz_mask;
+    cudaTextureObject_t tex_txz_mask;
+
 private:
+
+
     void load_from_file(const std::string &file);
     void memory_allocate();
     void memory_release();
@@ -80,7 +96,7 @@ private:
     void build_insterp_LUT();
 };
 
-
+// 设备端全局符号声明
 extern __device__ cudaTextureObject_t vx_mask;
 extern __device__ cudaTextureObject_t vz_mask;
 extern __device__ cudaTextureObject_t sx_mask;
@@ -118,6 +134,5 @@ extern __constant__ int sum_offset_fine_sz[12];
 extern __constant__ int sum_offset_fine_txz[12];
 
 extern __constant__ float lagrange_coeff[LUT_SIZE * LAGRANGE_ORDER];
-
 
 #endif

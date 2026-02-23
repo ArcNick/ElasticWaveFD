@@ -80,88 +80,83 @@ __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int
         return;
     }
 
-    float dvx_dx = 0;
-    float dvz_dz = 0;
-    float dvz_dx = 0;
-    float dvx_dz = 0;
-    
-    // dvx_dx
-    if (tex2D<int>(vx_mask, ix, iz) == -1 && ix > 3) {
-        dvx_dx = dvx_dx_coarse(core.vx, ix, iz, cur ^ 1);
+    if (tex1Dfetch<int>(sx_mask, iz * nx + ix) == -1) {
+        float dvx_dx = 0;
+        float dvz_dz = 0;
+        if (ix > 3) {
+            dvx_dx = dvx_dx_coarse(core.vx, ix, iz, cur ^ 1);
+        }
+        if (iz > 3) {
+            dvz_dz = dvz_dz_coarse(core.vz, ix, iz, cur ^ 1);
+        }
+
+        int pml_idx;
+        // pml_idx_x_int
+        pml_idx = get_cpml_idx_x_half(ix);
+        if (pml_idx < thickness_d - 1) {
+            psi_vel.psi_vx_x[iz * (nx - 1) + ix] = (
+                + b_half_d[pml_idx] * psi_vel.psi_vx_x[iz * (nx - 1) + ix]
+                + a_half_d[pml_idx] * dvx_dx
+            );
+            dvx_dx = dvx_dx / kappa_half_d[pml_idx] + psi_vel.psi_vx_x[iz * (nx - 1) + ix];
+        }
+
+        // pml_idx_z_half
+        pml_idx = get_cpml_idx_z_half(iz);
+        if (pml_idx < thickness_d - 1) {
+            psi_vel.psi_vz_z[iz * nx + ix] = (
+                + b_half_d[pml_idx] * psi_vel.psi_vz_z[iz * nx + ix]
+                + a_half_d[pml_idx] * dvz_dz
+            );
+            dvz_dz = dvz_dz / kappa_half_d[pml_idx] + psi_vel.psi_vz_z[iz * nx + ix];
+        }
+        core.sx[IdxSxCo(ix, iz, cur)] = (
+            + core.sx[IdxSxCo(ix, iz, cur ^ 1)]
+            + dt_d * (
+                + model.C11[IdxSxCo(ix, iz, 0)] * dvx_dx 
+                + model.C13[IdxSxCo(ix, iz, 0)] * dvz_dz
+            )
+        );
+        core.sz[IdxSzCo(ix, iz, cur)] = (
+            + core.sz[IdxSzCo(ix, iz, cur ^ 1)]
+            + dt_d * (
+                + model.C13[IdxSzCo(ix, iz, 0)] * dvx_dx
+                + model.C33[IdxSzCo(ix, iz, 0)] * dvz_dz
+            )
+        );
     }
-    // dvz_dz
-    if (tex2D<int>(vz_mask, ix, iz) == -1 && iz > 3) {
-        dvz_dz = dvz_dz_coarse(core.vz, ix, iz, cur ^ 1);
-    }
-    // dvx_dz
-    if (tex2D<int>(vx_mask, ix, iz) == -1) {
+
+    if (tex1Dfetch<int>(txz_mask, iz * (nx - 1) + ix) == -1) {
+        float dvz_dx = 0;
+        float dvx_dz = 0;
         dvx_dz = dvx_dz_coarse(core.vx, ix, iz, cur ^ 1);
-    }
-    // dvz_dx
-    if (tex2D<int>(vz_mask, ix, iz) == -1) {
         dvz_dx = dvz_dx_coarse(core.vz, ix, iz, cur ^ 1);
-    }
+        int pml_idx;
+        // pml_idx_x_int
+        pml_idx = get_cpml_idx_x_int(ix);
+        if (pml_idx < thickness_d) {
+            psi_vel.psi_vz_x[iz * nx + ix] = (
+                + b_int_d[pml_idx] * psi_vel.psi_vz_x[iz * nx + ix] 
+                + a_int_d[pml_idx] * dvz_dx
+            );
+            dvz_dx = dvz_dx / kappa_int_d[pml_idx] + psi_vel.psi_vz_x[iz * nx + ix];
+        }
 
-    int pml_idx;
+        // pml_idx_z_int
+        pml_idx = get_cpml_idx_z_int(iz);
+        if (pml_idx < thickness_d) {
+            psi_vel.psi_vx_z[iz * (nx - 1) + ix] = (
+                + b_int_d[pml_idx] * psi_vel.psi_vx_z[iz * (nx - 1) + ix]
+                + a_int_d[pml_idx] * dvx_dz
+            );
+            dvx_dz = dvx_dz / kappa_int_d[pml_idx] + psi_vel.psi_vx_z[iz * (nx - 1) + ix];
+        }
 
-    // pml_idx_x_int
-    pml_idx = get_cpml_idx_x_int(ix);
-    if (pml_idx < thickness_d) {
-        psi_vel.psi_vz_x[iz * nx + ix] = (
-            + b_int_d[pml_idx] * psi_vel.psi_vz_x[iz * nx + ix] 
-            + a_int_d[pml_idx] * dvz_dx
+        core.txz[IdxTxzCo(ix, iz, cur)] = (
+            + core.txz[IdxTxzCo(ix, iz, cur ^ 1)]
+            + dt_d * samp_C55(model.C55, ix, iz) * (dvz_dx + dvx_dz)
         );
-        dvz_dx = dvz_dx / kappa_int_d[pml_idx] + psi_vel.psi_vz_x[iz * nx + ix];
     }
-
-    // pml_idx_z_int
-    pml_idx = get_cpml_idx_z_int(iz);
-    if (pml_idx < thickness_d) {
-        psi_vel.psi_vx_z[iz * (nx - 1) + ix] = (
-            + b_int_d[pml_idx] * psi_vel.psi_vx_z[iz * (nx - 1) + ix]
-            + a_int_d[pml_idx] * dvx_dz
-        );
-        dvx_dz = dvx_dz / kappa_int_d[pml_idx] + psi_vel.psi_vx_z[iz * (nx - 1) + ix];
-    }
-
-    // pml_idx_x_half
-    pml_idx = get_cpml_idx_x_half(ix);
-    if (pml_idx < thickness_d - 1) {
-        psi_vel.psi_vx_x[iz * (nx - 1) + ix] = (
-            + b_half_d[pml_idx] * psi_vel.psi_vx_x[iz * (nx - 1) + ix]
-            + a_half_d[pml_idx] * dvx_dx
-        );
-        dvx_dx = dvx_dx / kappa_half_d[pml_idx] + psi_vel.psi_vx_x[iz * (nx - 1) + ix];
-    }
-
-    // pml_idx_z_half
-    pml_idx = get_cpml_idx_z_half(iz);
-    if (pml_idx < thickness_d - 1) {
-        psi_vel.psi_vz_z[iz * nx + ix] = (
-            + b_half_d[pml_idx] * psi_vel.psi_vz_z[iz * nx + ix]
-            + a_half_d[pml_idx] * dvz_dz
-        );
-        dvz_dz = dvz_dz / kappa_half_d[pml_idx] + psi_vel.psi_vz_z[iz * nx + ix];
-    }
-
-    core.sx[IdxSxCo(ix, iz, cur)] = (
-        + core.sx[IdxSxCo(ix, iz, cur ^ 1)]
-        + dt_d * (
-            + model.C11[IdxSxCo(ix, iz, 0)] * dvx_dx 
-            + model.C13[IdxSxCo(ix, iz, 0)] * dvz_dz
-        )
-    );
-    core.sz[IdxSzCo(ix, iz, cur)] = (
-        + core.sz[IdxSzCo(ix, iz, cur ^ 1)]
-        + dt_d * (
-            + model.C13[IdxSzCo(ix, iz, 0)] * dvx_dx
-            + model.C33[IdxSzCo(ix, iz, 0)] * dvz_dz
-        )
-    );
-    core.txz[IdxTxzCo(ix, iz, cur)] = (
-        + core.txz[IdxTxzCo(ix, iz, cur ^ 1)]
-        + dt_d * samp_C55(model.C55, ix, iz) * (dvz_dx + dvx_dz)
-    );
 }
 
 __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, int cur) {
@@ -172,78 +167,72 @@ __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, i
         return;
     }
 
-    float dsx_dx = 0;
-    float dsz_dz = 0;
-    float dtxz_dx = 0;
-    float dtxz_dz = 0;
-
-    // dsx_dx
-    if (tex2D<int>(sx_mask, ix, iz) == -1) {
+    if (tex1Dfetch<int>(vx_mask, iz * (nx - 1) + ix) == -1) {
+        float dsx_dx = 0;
+        float dtxz_dz = 0;
         dsx_dx = dsx_dx_coarse(core.sx, ix, iz, cur);
+        if (iz > 3) {
+            dtxz_dz = dtxz_dz_coarse(core.txz, ix, iz, cur);
+        }
+
+        int pml_idx;
+        // pml_idx_x_int
+        pml_idx = get_cpml_idx_x_int(ix);
+        if (pml_idx < thickness_d) {
+            psi_str.psi_sx_x[iz * nx + ix] = (
+                + b_int_d[pml_idx] * psi_str.psi_sx_x[iz * nx + ix]
+                + a_int_d[pml_idx] * dsx_dx
+            );
+            dsx_dx = dsx_dx / kappa_int_d[pml_idx] + psi_str.psi_sx_x[iz * nx + ix];
+        }
+        // pml_idx_z_half
+        pml_idx = get_cpml_idx_z_half(iz);
+        if (pml_idx < thickness_d - 1) {
+            psi_str.psi_txz_z[iz * (nx - 1) + ix] = (
+                + b_half_d[pml_idx] * psi_str.psi_txz_z[iz * (nx - 1) + ix]
+                + a_half_d[pml_idx] * dtxz_dz
+            );
+            dtxz_dz = dtxz_dz / kappa_half_d[pml_idx] + psi_str.psi_txz_z[iz * (nx - 1) + ix];
+        }
+
+        core.vx[IdxVxCo(ix, iz, cur)] = core.vx[IdxVxCo(ix, iz, cur ^ 1)] + (
+            dt_d / samp_rho_x(model.rho, ix, iz) * (dsx_dx + dtxz_dz)
+        );
     }
 
-    // dsz_dz
-    if (tex2D<int>(sz_mask, ix, iz) == -1) {
+    if (tex1Dfetch<int>(vz_mask, iz * (nx - 1) + ix) == -1) {
+        float dsz_dz = 0;
+        float dtxz_dx = 0;
         dsz_dz = dsz_dz_coarse(core.sz, ix, iz, cur);
-    }
+        if (ix > 3) {
+            dtxz_dx = dtxz_dx_coarse(core.txz, ix, iz, cur);
+        }
 
-    // dtxz_dx
-    if (tex2D<int>(txz_mask, ix, iz) == -1 && ix > 3) {
-        dtxz_dx = dtxz_dx_coarse(core.txz, ix, iz, cur);
-    }
+        int pml_idx;
+        // pml_idx_z_int
+        pml_idx = get_cpml_idx_z_int(iz);
+        if (pml_idx < thickness_d) {
+            psi_str.psi_sz_z[iz * nx + ix] = (
+                + b_int_d[pml_idx] * psi_str.psi_sz_z[iz * nx + ix]
+                + a_int_d[pml_idx] * dsz_dz
+            );
+            dsz_dz = dsz_dz / kappa_int_d[pml_idx] + psi_str.psi_sz_z[iz * nx + ix];
+        }
 
-    // dtxz_dz
-    if (tex2D<int>(txz_mask, ix, iz) == -1 && iz > 3) {
-        dtxz_dz = dtxz_dz_coarse(core.txz, ix, iz, cur);
-    }
+        // pml_idx_x_half
+        pml_idx = get_cpml_idx_x_half(ix);
+        if (pml_idx < thickness_d - 1) {
+            psi_str.psi_txz_x[iz * (nx - 1) + ix] = (
+                + b_half_d[pml_idx] * psi_str.psi_txz_x[iz * (nx - 1) + ix]
+                + a_half_d[pml_idx] * dtxz_dx
+            );
+            dtxz_dx = dtxz_dx / kappa_half_d[pml_idx] + psi_str.psi_txz_x[iz * (nx - 1) + ix];
+        }
 
-    int pml_idx;
-    // pml_idx_x_int
-    pml_idx = get_cpml_idx_x_int(ix);
-    if (pml_idx < thickness_d) {
-        psi_str.psi_sx_x[iz * nx + ix] = (
-            + b_int_d[pml_idx] * psi_str.psi_sx_x[iz * nx + ix]
-            + a_int_d[pml_idx] * dsx_dx
+        core.vz[IdxVzCo(ix, iz, cur)] = core.vz[IdxVzCo(ix, iz, cur ^ 1)] + (
+            dt_d / samp_rho_z(model.rho, ix, iz) * (dtxz_dx + dsz_dz)
         );
-        dsx_dx = dsx_dx / kappa_int_d[pml_idx] + psi_str.psi_sx_x[iz * nx + ix];
     }
-
-    // pml_idx_z_int
-    pml_idx = get_cpml_idx_z_int(iz);
-    if (pml_idx < thickness_d) {
-        psi_str.psi_sz_z[iz * nx + ix] = (
-            + b_int_d[pml_idx] * psi_str.psi_sz_z[iz * nx + ix]
-            + a_int_d[pml_idx] * dsz_dz
-        );
-        dsz_dz = dsz_dz / kappa_int_d[pml_idx] + psi_str.psi_sz_z[iz * nx + ix];
-    }
-
-    // pml_idx_x_half
-    pml_idx = get_cpml_idx_x_half(ix);
-    if (pml_idx < thickness_d - 1) {
-        psi_str.psi_txz_x[iz * (nx - 1) + ix] = (
-            + b_half_d[pml_idx] * psi_str.psi_txz_x[iz * (nx - 1) + ix]
-            + a_half_d[pml_idx] * dtxz_dx
-        );
-        dtxz_dx = dtxz_dx / kappa_half_d[pml_idx] + psi_str.psi_txz_x[iz * (nx - 1) + ix];
-    }
-
-    // pml_idx_z_half
-    pml_idx = get_cpml_idx_z_half(iz);
-    if (pml_idx < thickness_d - 1) {
-        psi_str.psi_txz_z[iz * (nx - 1) + ix] = (
-            + b_half_d[pml_idx] * psi_str.psi_txz_z[iz * (nx - 1) + ix]
-            + a_half_d[pml_idx] * dtxz_dz
-        );
-        dtxz_dz = dtxz_dz / kappa_half_d[pml_idx] + psi_str.psi_txz_z[iz * (nx - 1) + ix];
-    }
-    
-    core.vx[IdxVxCo(ix, iz, cur)] = core.vx[IdxVxCo(ix, iz, cur ^ 1)] + (
-        dt_d / samp_rho_x(model.rho, ix, iz) * (dsx_dx + dtxz_dz)
-    );
-    core.vz[IdxVzCo(ix, iz, cur)] = core.vz[IdxVzCo(ix, iz, cur ^ 1)] + (
-        dt_d / samp_rho_z(model.rho, ix, iz) * (dtxz_dx + dsz_dz)
-    );
 }
 
 __global__ void update_stress_fine(Core core, Model model, int cur, int zone) {

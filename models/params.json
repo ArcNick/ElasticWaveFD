@@ -2,7 +2,7 @@
   "base": {
     "fpeak": 20.0,
     "dt": 0.0005,
-    "nt": 4000,
+    "nt": 1,
     "posx": 125,
     "posz": 125,
     "snapshot": 100
