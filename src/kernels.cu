@@ -35,35 +35,84 @@ __device__ int IdxTxzFi(int ix, int iz, int time, int zone) {
     return iz * (fines[zone].lenx - 1) + ix + time * offset_txz_all + sum_offset_fine_txz[zone];
 }
 
+//======== original ========//
+// __device__ int get_cpml_idx_x_int(int ix) {
+//     if (ix - 3 >= 0 && ix - 3 < thickness_d) {
+//         return thickness_d - 1 - (ix - 3);
+//     } else if (nx - 1 - ix - 4 >= 0 && nx - 1 - ix - 4 < thickness_d) {
+//         return thickness_d - 1 - (nx - 1 - ix - 4);
+//     } else {
+//         return thickness_d;
+//     }
+// }
+
+// __device__ int get_cpml_idx_z_int(int iz) {
+//     if (iz - 3 >= 0 && iz - 3 < thickness_d) {
+//         return thickness_d - 1 - (iz - 3);
+//     } else if (nz - 1 - iz - 4 >= 0 && nz - 1 - iz - 4) {
+//         return thickness_d - 1 - (nz - 1 - iz - 4);
+//     } else {
+//         return thickness_d;
+//     }
+// }
+
+// __device__ int get_cpml_idx_x_half(int ix) {
+//     if (ix - 4 >= 0 && ix - 4 < thickness_d - 1) {
+//         return thickness_d - 1 - (ix - 4);
+//     } else if (nx - 2 - ix - 3 >= 0 && nx - 2 - ix - 3 < thickness_d - 1) {
+//         return thickness_d - 1 - (nx - 2 - ix - 3);
+//     } else {
+//         return thickness_d - 1;
+//     }
+// }
+
+// __device__ int get_cpml_idx_z_half(int iz) {
+//     if (iz - 4 >= 0 && iz - 4 < thickness_d - 1) {
+//         return thickness_d - 1 - (iz - 4);
+//     } else if (nz - 2 - iz - 3 >= 0 && nz - 2 - iz - 3 < thickness_d - 1) {
+//         return thickness_d - 1 - (nz - 2 - iz - 3);
+//     } else {
+//         return thickness_d - 1;
+//     }
+// }
+
 __device__ int get_cpml_idx_x_int(int ix) {
     if (ix - 3 >= 0 && ix - 3 < thickness_d) {
-        return thickness_d - 1 - (ix - 3);
+        return thickness_d - ix + 2;
+    } else if (nx - ix - 5 >= 0 && nx - ix - 5 < thickness_d) {
+        return thickness_d - nx + ix + 4;
     } else {
-        return thickness_d - 1 - (nx - 1 - ix - 4);
+        return thickness_d;
     }
 }
 
 __device__ int get_cpml_idx_z_int(int iz) {
     if (iz - 3 >= 0 && iz - 3 < thickness_d) {
-        return thickness_d - 1 - (iz - 3);
+        return thickness_d - iz + 2;
+    } else if (nz - iz - 5 >= 0 && nz - iz - 5 < thickness_d) {
+        return thickness_d - nz + iz + 4;
     } else {
-        return thickness_d - 1 - (nz - 1 - iz - 4);
+        return thickness_d;
     }
 }
 
 __device__ int get_cpml_idx_x_half(int ix) {
-    if (ix - 4 >= 0 && ix - 4 < thickness_d) {
-        return thickness_d - 1 - (ix - 4);
+    if (ix - 4 >= 0 && ix - 3 < thickness_d) {
+        return thickness_d - ix + 2;
+    } else if (nx - ix - 5 >= 0 && nx - ix - 4 < thickness_d) {
+        return thickness_d - nx + ix + 3;
     } else {
-        return thickness_d - 1 - (nx - 2 - ix - 3);
+        return thickness_d - 1;
     }
 }
 
 __device__ int get_cpml_idx_z_half(int iz) {
-    if (iz - 4 >= 0 && iz - 4 < thickness_d) {
-        return thickness_d - 1 - (iz - 4);
+    if (iz - 4 >= 0 && iz - 3 < thickness_d) {
+        return thickness_d - iz + 2;
+    } else if (nz - iz - 5 >= 0 && nz - iz - 4 < thickness_d) {
+        return thickness_d - nz + iz + 3;
     } else {
-        return thickness_d - 1 - (nz - 2 - iz - 3);
+        return thickness_d - 1;
     }
 }
 
@@ -91,7 +140,7 @@ __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int
         }
 
         int pml_idx;
-        // pml_idx_x_int
+        // pml_idx_x_half
         pml_idx = get_cpml_idx_x_half(ix);
         if (pml_idx < thickness_d - 1) {
             psi_vel.psi_vx_x[iz * (nx - 1) + ix] = (
@@ -110,6 +159,7 @@ __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int
             );
             dvz_dz = dvz_dz / kappa_half_d[pml_idx] + psi_vel.psi_vz_z[iz * nx + ix];
         }
+
         core.sx[IdxSxCo(ix, iz, cur)] = (
             + core.sx[IdxSxCo(ix, iz, cur ^ 1)]
             + dt_d * (
@@ -124,6 +174,14 @@ __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int
                 + model.C33[IdxSzCo(ix, iz, 0)] * dvz_dz
             )
         );
+
+        // NaN checks
+        if (isnan(dvx_dx)) {
+            printf("update_stress_coarse dvx_dx (%d,%d)\n", ix, iz);
+        }
+        if (isnan(dvz_dz)) {
+            printf("update_stress_coarse dvz_dz (%d,%d)\n", ix, iz);
+        }
     }
 
     if (tex1Dfetch<int>(txz_mask, iz * (nx - 1) + ix) == -1) {
@@ -131,6 +189,7 @@ __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int
         float dvx_dz = 0;
         dvx_dz = dvx_dz_coarse(core.vx, ix, iz, cur ^ 1);
         dvz_dx = dvz_dx_coarse(core.vz, ix, iz, cur ^ 1);
+
         int pml_idx;
         // pml_idx_x_int
         pml_idx = get_cpml_idx_x_int(ix);
@@ -156,6 +215,14 @@ __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int
             + core.txz[IdxTxzCo(ix, iz, cur ^ 1)]
             + dt_d * samp_C55(model.C55, ix, iz) * (dvz_dx + dvx_dz)
         );
+
+        // NaN checks
+        if (isnan(dvz_dx)) {
+            printf("update_stress_coarse dvz_dx (%d,%d)\n", ix, iz);
+        }
+        if (isnan(dvx_dz)) {
+            printf("update_stress_coarse dvx_dz (%d,%d)\n", ix, iz);
+        }
     }
 }
 
@@ -198,6 +265,14 @@ __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, i
         core.vx[IdxVxCo(ix, iz, cur)] = core.vx[IdxVxCo(ix, iz, cur ^ 1)] + (
             dt_d / samp_rho_x(model.rho, ix, iz) * (dsx_dx + dtxz_dz)
         );
+
+        // NaN checks
+        if (isnan(dsx_dx)) {
+            printf("update_velocity_coarse dsx_dx (%d,%d)\n", ix, iz);
+        }
+        if (isnan(dtxz_dz)) {
+            printf("update_velocity_coarse dtxz_dz (%d,%d)\n", ix, iz);
+        }
     }
 
     if (tex1Dfetch<int>(vz_mask, iz * (nx - 1) + ix) == -1) {
@@ -232,6 +307,14 @@ __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, i
         core.vz[IdxVzCo(ix, iz, cur)] = core.vz[IdxVzCo(ix, iz, cur ^ 1)] + (
             dt_d / samp_rho_z(model.rho, ix, iz) * (dtxz_dx + dsz_dz)
         );
+
+        // NaN checks
+        if (isnan(dsz_dz)) {
+            printf("update_velocity_coarse dsz_dz (%d,%d)\n", ix, iz);
+        }
+        if (isnan(dtxz_dx)) {
+            printf("update_velocity_coarse dtxz_dx (%d,%d)\n", ix, iz);
+        }
     }
 }
 
@@ -270,6 +353,14 @@ __global__ void update_stress_fine(Core core, Model model, int cur, int zone) {
         )
     );
 
+    // NaN checks
+    if (isnan(dvx_dx)) {
+        printf("update_stress_fine dvx_dx (%d,%d)\n", ix, iz);
+    }
+    if (isnan(dvz_dz)) {
+        printf("update_stress_fine dvz_dz (%d,%d)\n", ix, iz);
+    }
+
     if (ix < fines[zone].lenx - 1 && iz < fines[zone].lenz - 1) {
         core.txz[IdxTxzFi(ix, iz, cur, zone)] = core.txz[IdxTxzFi(ix, iz, cur ^ 1, zone)] + (
             dt_d * 0.25 * (
@@ -279,6 +370,14 @@ __global__ void update_stress_fine(Core core, Model model, int cur, int zone) {
                 + model.C55[IdxSxFi(ix + 1, iz + 1, 0, zone)]
             ) * (dvz_dx + dvx_dz)
         );
+
+        // NaN checks
+        if (isnan(dvz_dx)) {
+            printf("update_stress_fine dvz_dx (%d,%d)\n", ix, iz);
+        }
+        if (isnan(dvx_dz)) {
+            printf("update_stress_fine dvx_dz (%d,%d)\n", ix, iz);
+        }
     }
 }
 
@@ -309,6 +408,14 @@ __global__ void update_velocity_fine(Core core, Model model, int cur, int zone) 
                 + model.rho[IdxSxFi(ix + 1, iz, 0, zone)]
             ) * (dsx_dx + dtxz_dz)
         );
+
+        // NaN checks
+        if (isnan(dsx_dx)) {
+            printf("update_velocity_fine dsx_dx (%d,%d)\n", ix, iz);
+        }
+        if (isnan(dtxz_dz)) {
+            printf("update_velocity_fine dtxz_dz (%d,%d)\n", ix, iz);
+        }
     }
     if (iz < fines[zone].lenz - 1) {
         core.vz[IdxVzFi(ix, iz, cur, zone)] = core.vz[IdxVzFi(ix, iz, cur ^ 1, zone)] + (
@@ -317,6 +424,13 @@ __global__ void update_velocity_fine(Core core, Model model, int cur, int zone) 
                 + model.rho[IdxSxFi(ix, iz + 1, 0, zone)]
             ) * (dtxz_dx + dsz_dz)
         );
+
+        // NaN checks
+        if (isnan(dtxz_dx)) {
+            printf("update_velocity_fine dtxz_dx (%d,%d)\n", ix, iz);
+        }
+        if (isnan(dsz_dz)) {
+            printf("update_velocity_fine dsz_dz (%d,%d)\n", ix, iz);
+        }
     }
 }
-

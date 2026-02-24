@@ -321,17 +321,31 @@ void GridManager::build_n() {
         for (int iz = 0; iz < lz; iz++) {
             for (int ix = 0; ix < lx; ix++) {
                 int n_x_int = 0, n_x_half = 0, n_z_int = 0, n_z_half = 0;
-                if (0 <= iz && iz < lz - 1) {
+                if (0 <= iz && iz < lz) {
                     n_z_int = std::min({ iz - 0 + 1, lz - 2 - iz + 1, 4 });
                 }
-                if (0 <= ix && ix < lx - 1) {
+                if (0 <= ix && ix < lx) {
                     n_x_int = std::min({ ix - 0 + 1, lx - 2 - ix + 1, 4 });
                 }
-                if (1 <= iz && iz < lz) {
+                if (0 <= iz && iz < lz - 1) {
                     n_z_half = std::min({ iz - 1 + 1, lz - 1 - iz + 1, 4 });
                 }
-                if (1 <= ix && ix < lx) {
+                if (0 <= ix && ix < lx - 1) {
                     n_x_half = std::min({ ix - 1 + 1, lx - 1 - ix + 1, 4 });
+                }
+
+
+                if (0 <= iz && iz < lz) {
+                    n_z_int = std::min({ iz + 1, lz - iz - 1, 4 });
+                }
+                if (0 <= ix && ix < lx) {
+                    n_x_int = std::min({ ix + 1, lx - ix - 1, 4 });
+                }
+                if (0 <= iz && iz < lz - 1) {
+                    n_z_half = std::min({ iz, lz - 1 - iz, 4 });
+                }
+                if (0 <= ix && ix < lx - 1) {
+                    n_x_half = std::min({ ix, lx - 1 - ix, 4 });
                 }
                 // vx
                 if (ix < lx - 1) {
@@ -436,7 +450,7 @@ void GridManager::build_constant() {
 
     int f_size = fine_info.size();
     cudaMemcpyToSymbol(num_fine, &f_size, sizeof(int), 0, cudaMemcpyHostToDevice);
-    std::cout << cudaMemcpyToSymbol(fines, fine_info.data(), f_size * sizeof(FineInfo), 0, cudaMemcpyHostToDevice);
+    cudaMemcpyToSymbol(fines, fine_info.data(), f_size * sizeof(FineInfo), 0, cudaMemcpyHostToDevice);
 
     std::vector<int> off_vx(f_size, 0);
     std::vector<int> off_vz(f_size, 0);

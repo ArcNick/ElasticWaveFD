@@ -7,16 +7,12 @@ float buffer[2048];
 
 void output_snapshots(GridManager &gm, int it, float dt, int time);
 void output_record(const GridManager &gm, int z, FILE *fp, int time);
-// __global__ void check_mask(cudaTextureObject_t tex) {
-//     int ix = blockIdx.x * blockDim.x + threadIdx.x + 418;
-//     int iz = blockIdx.y * blockDim.y + threadIdx.y + 418;
-//     if (ix >= 500 || iz >= 500) {
-//         return;
-//     }
-//     int mask = tex1Dfetch<int>(vx_mask, iz * 499 + ix);
-//     // int tex_z = tex1D<int2>(vx_n_tex, iz * (fines[0].lenx - 1) + ix).y;
-//     printf("ix: %d, iz: %d, mask: %d\n", ix, iz, mask);
-// }
+
+__global__ void debug_kerner(float *f) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x;
+    int iz = blockIdx.y * blockDim.y + threadIdx.y;
+    
+}
 
 
 int main() {
@@ -47,9 +43,6 @@ int main() {
         std::cerr << "Failed to open output file for recording." << std::endl;
         return -1;
     }
-    dim3 g((gm.fine_info[0].lenx + 15) / 16, (gm.fine_info[0].lenz + 15) / 16);
-    dim3 bb(16, 16);
-    // check_mask<<<g, bb>>>(gm.tex_vx_n);
 
     for (int it = 0; it < params.nt; it++) {
         

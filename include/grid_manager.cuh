@@ -45,8 +45,8 @@ class GridManager {
 public:
     int nx_coarse;
     int nz_coarse;
-    int dx_coarse;
-    int dz_coarse;
+    float dx_coarse;
+    float dz_coarse;
 
     int offset_time_vx;
     int offset_time_vz;

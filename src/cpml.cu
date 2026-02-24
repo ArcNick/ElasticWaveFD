@@ -163,17 +163,17 @@ void Cpml::mem_release() {
 //     }
 //     return thickness - 1 - res;
 // }
-__device__ int get_cpml_idx_z_half(int lz, int iz, int thickness) {
-    int res = -1;
-    int arr[] = {iz - 4, lz - 1 - iz - 3};
-    for (int i = 0; i < 2; i++) {
-        if (0 <= arr[i] && arr[i] < thickness) {
-            res = arr[i];
-            break;
-        }
-    }
-    return thickness - 1 - res;    
-}
+// __device__ int get_cpml_idx_z_half(int lz, int iz, int thickness) {
+//     int res = -1;
+//     int arr[] = {iz - 4, lz - 1 - iz - 3};
+//     for (int i = 0; i < 2; i++) {
+//         if (0 <= arr[i] && arr[i] < thickness) {
+//             res = arr[i];
+//             break;
+//         }
+//     }
+//     return thickness - 1 - res;    
+// }
 
 // __device__ int get_cpml_idx_x_int(int lx, int ix, int thickness) {
 //     int res = -1;
