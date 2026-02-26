@@ -8,10 +8,78 @@ float buffer[2048];
 void output_snapshots(GridManager &gm, int it, float dt, int time);
 void output_record(const GridManager &gm, int z, FILE *fp, int time);
 
-__global__ void debug_kerner(float *f) {
+__global__ void debug_kernel(float *f, int time, int it) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
-    
+
+    // printf("sx(%d, %d)=%f, it=%d\n", 125, 125, f[125 * 500 + 125 + time * offset_sx_all], it);
+    // printf("sx(%d, %d)=%f, it=%d\n", 125, 126, f[126 * 500 + 125 + time * offset_sx_all], it);
+    // printf("sx(%d, %d)=%f, it=%d\n", 126, 125, f[125 * 500 + 126 + time * offset_sx_all], it);
+    // printf("sx(%d, %d)=%f, it=%d\n", 124, 125, f[125 * 500 + 124 + time * offset_sx_all], it);
+    // printf("sx(%d, %d)=%f, it=%d\n", 125, 124, f[124 * 500 + 125 + time * offset_sx_all], it);
+    if (ix == 0 && iz == 0) {
+        printf("\n========== Constant Memory Dump ==========\n");
+
+        // 基本网格参数
+        printf("dx = %f, dz = %f\n", dx, dz);
+        printf("nx = %d, nz = %d\n", nx, nz);
+
+        // 各场的时间层偏移量
+        printf("offset_vx_all = %d\n", offset_vx_all);
+        printf("offset_vz_all = %d\n", offset_vz_all);
+        printf("offset_sx_all = %d\n", offset_sx_all);
+        printf("offset_sz_all = %d\n", offset_sz_all);
+        printf("offset_txz_all = %d\n", offset_txz_all);
+
+        // 震源位置和时间步长
+        printf("posx_d = %d, posz_d = %d\n", posx_d, posz_d);
+        printf("dt_d = %f, nt_d = %d\n", dt_d, nt_d);
+
+        // CPML 参数
+        printf("thickness_d = %d\n", thickness_d);
+        for (int i = 0; i < thickness_d; i++) {
+            printf("a_int_d[%d] = %e, b_int_d[%d] = %e, kappa_int_d[%d] = %f\n",
+                   i, a_int_d[i], i, b_int_d[i], i, kappa_int_d[i]);
+        }
+        for (int i = 0; i < thickness_d - 1; i++) {
+            printf("a_half_d[%d] = %e, b_half_d[%d] = %e, kappa_half_d[%d] = %f\n",
+                   i, a_half_d[i], i, b_half_d[i], i, kappa_half_d[i]);
+        }
+
+        // 细网格信息
+        printf("num_fine = %d\n", num_fine);
+        for (int i = 0; i < num_fine; i++) {
+            printf("fines[%d]: x_start=%d, x_end=%d, z_start=%d, z_end=%d, lenx=%d, lenz=%d, N=%d, dx_fine=%f, dz_fine=%f\n",
+                   i,
+                   fines[i].x_start,
+                   fines[i].x_end,
+                   fines[i].z_start,
+                   fines[i].z_end,
+                   fines[i].lenx,
+                   fines[i].lenz,
+                   fines[i].N,
+                   fines[i].dx_fine,
+                   fines[i].dz_fine);
+        }
+
+        // 细网格在总数组中的起始偏移
+        for (int i = 0; i < num_fine; i++) {
+            printf("sum_offset_fine_vx[%d] = %d\n", i, sum_offset_fine_vx[i]);
+            printf("sum_offset_fine_vz[%d] = %d\n", i, sum_offset_fine_vz[i]);
+            printf("sum_offset_fine_sx[%d] = %d\n", i, sum_offset_fine_sx[i]);
+            printf("sum_offset_fine_sz[%d] = %d\n", i, sum_offset_fine_sz[i]);
+            printf("sum_offset_fine_txz[%d] = %d\n", i, sum_offset_fine_txz[i]);
+        }
+
+    //     // 拉格朗日插值系数（可选，注释掉以节省输出）
+    //     /*
+    //     for (int i = 0; i < LUT_SIZE * LAGRANGE_ORDER; i++) {
+    //         printf("lagrange_coeff[%d] = %f\n", i, lagrange_coeff[i]);
+    //     }
+    //     */
+
+    //     printf("========== End of Dump ==========\n");
+    }
 }
 
 
@@ -26,8 +94,8 @@ int main() {
 
     cudaStream_t stream_co;
     cudaStreamCreate(&stream_co);
-    std::vector<cudaStream_t> stream_fi(NUM_STREAM);
-    for (int i = 0; i < NUM_STREAM; ++i) {
+    std::vector<cudaStream_t> stream_fi(gm.fine_info.size());
+    for (int i = 0; i < gm.fine_info.size(); ++i) {
         cudaStreamCreate(&stream_fi[i]);
     }
 
@@ -44,9 +112,10 @@ int main() {
         return -1;
     }
 
+    // debug_kernel<<<1, 1>>>(nullptr, 0, 0);
     for (int it = 0; it < params.nt; it++) {
-        
         int cur = it & 1;
+        
         dim3 grid_co((gm.nx_coarse + 15) / 16, (gm.nz_coarse + 15) / 16);
         dim3 block_co(16, 16);
         update_stress_coarse<<<grid_co, block_co, 0, stream_co>>>(gm.core_d, gm.model_d, cpml.psi_vel, cur);
@@ -82,7 +151,7 @@ int main() {
     printf("finished 100.00%%\n");
     fclose(fp);
     cudaStreamDestroy(stream_co);
-    for (int i = 0; i < NUM_STREAM; ++i) {
+    for (int i = 0; i < gm.fine_info.size(); ++i) {
         cudaStreamDestroy(stream_fi[i]);
     }
 }

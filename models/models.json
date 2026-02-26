@@ -11,17 +11,6 @@
     "C55": "models/coarse/C55.bin"
   },
   "fine": [
-    {
-      "x_start": 419,
-      "x_end": 426,
-      "z_start": 420,
-      "z_end": 427,
-      "N": 3,
-      "rho": "models/fine/0/rho.bin",
-      "C11": "models/fine/0/C11.bin",
-      "C13": "models/fine/0/C13.bin",
-      "C33": "models/fine/0/C33.bin",
-      "C55": "models/fine/0/C55.bin"
-    }
+    
   ]
 }

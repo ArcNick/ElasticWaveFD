@@ -29,14 +29,14 @@ fine_regions = [
 ]
 
 # 震源位置（中心）
-posx = nx // 4
-posz = nz // 4
+posx = nx // 2
+posz = nz // 2
 
 # 时间参数（示例值，可根据需要调整）
 fpeak = 20.0       # 主频 Hz
-dt = 0.0005         # 时间步长 s
-nt = 4000          # 总时间步数
-snapshot = 100     # 快照间隔
+dt = 0.00005         # 时间步长 s
+nt = 20000          # 总时间步数
+snapshot = 200     # 快照间隔
 
 # CPML参数（标准值）
 cpml_thickness = 10

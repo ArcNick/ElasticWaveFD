@@ -1,11 +1,11 @@
 {
   "base": {
     "fpeak": 20.0,
-    "dt": 0.00001,
-    "nt": 2000,
-    "posx": 125,
-    "posz": 125,
-    "snapshot": 100
+    "dt": 5e-05,
+    "nt": 20000,
+    "posx": 250,
+    "posz": 250,
+    "snapshot": 400
   },
   "cpml": {
     "thickness": 10,

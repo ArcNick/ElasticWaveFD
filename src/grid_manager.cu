@@ -77,8 +77,15 @@ void GridManager::load_from_file(const std::string &file) {
 
     // 细网格
     cJSON *fine_ptr = cJSON_GetObjectItem(root, "fine");
-    int num = cJSON_GetArraySize(fine_ptr);
-    fine_info.reserve(num);
+    if (fine_ptr == nullptr || cJSON_GetArraySize(fine_ptr) == 0) {
+        FINE = FINE_OFF;
+    } else {
+        FINE = FINE_ON;
+    }
+    
+    int num = 0;
+    if (FINE == FINE_ON) num = cJSON_GetArraySize(fine_ptr);
+
     for (int i = 0; i < num; i++) {
         FineInfo info;
         cJSON *item = cJSON_GetArrayItem(fine_ptr, i);
@@ -93,12 +100,12 @@ void GridManager::load_from_file(const std::string &file) {
         info.lenz = (info.z_end - info.z_start) * info.N + 1;
         fine_info.push_back(info);
     }
-    for (const auto &info : fine_info) {
-        offset_time_vx += (info.lenx - 1) * info.lenz;
-        offset_time_vz += info.lenx * (info.lenz - 1);
-        offset_time_sx += info.lenx * info.lenz;
-        offset_time_sz += info.lenx * info.lenz;
-        offset_time_txz += (info.lenx - 1) * (info.lenz - 1);
+    for (int i = 0; i < fine_info.size(); i++) {
+        offset_time_vx += (fine_info[i].lenx - 1) * fine_info[i].lenz;
+        offset_time_vz += fine_info[i].lenx * (fine_info[i].lenz - 1);
+        offset_time_sx += fine_info[i].lenx * fine_info[i].lenz;
+        offset_time_sz += fine_info[i].lenx * fine_info[i].lenz;
+        offset_time_txz += (fine_info[i].lenx - 1) * (fine_info[i].lenz - 1);
     }
 
     memory_allocate();
@@ -283,6 +290,7 @@ void GridManager::build_mask() {
 }
 
 void GridManager::build_n() {
+    if (FINE == FINE_OFF) return;
     int offset_vx_n = 0;
     int offset_vz_n = 0;
     int offset_sx_n = 0;
@@ -448,6 +456,7 @@ void GridManager::build_constant() {
     cudaMemcpyToSymbol(offset_sz_all, &offset_time_sz, sizeof(int), 0, cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(offset_txz_all, &offset_time_txz, sizeof(int), 0, cudaMemcpyHostToDevice);
 
+    if (FINE == FINE_OFF) return;
     int f_size = fine_info.size();
     cudaMemcpyToSymbol(num_fine, &f_size, sizeof(int), 0, cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(fines, fine_info.data(), f_size * sizeof(FineInfo), 0, cudaMemcpyHostToDevice);

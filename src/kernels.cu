@@ -176,12 +176,14 @@ __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int
         );
 
         // NaN checks
-        if (isnan(dvx_dx)) {
-            printf("update_stress_coarse dvx_dx (%d,%d)\n", ix, iz);
-        }
-        if (isnan(dvz_dz)) {
-            printf("update_stress_coarse dvz_dz (%d,%d)\n", ix, iz);
-        }
+        // if (isnan(dvx_dx)) {
+        //     printf("update_stress_coarse dvx_dx (%d,%d)\n", ix, iz);
+        // }
+        // if (isnan(dvz_dz)) {
+        //     printf("update_stress_coarse dvz_dz (%d,%d)\n", ix, iz);
+        // }
+    } else {
+        printf("mask!!!!\n");
     }
 
     if (tex1Dfetch<int>(txz_mask, iz * (nx - 1) + ix) == -1) {
@@ -217,13 +219,16 @@ __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int
         );
 
         // NaN checks
-        if (isnan(dvz_dx)) {
-            printf("update_stress_coarse dvz_dx (%d,%d)\n", ix, iz);
-        }
-        if (isnan(dvx_dz)) {
-            printf("update_stress_coarse dvx_dz (%d,%d)\n", ix, iz);
-        }
+        // if (isnan(dvz_dx)) {
+        //     printf("update_stress_coarse dvz_dx (%d,%d)\n", ix, iz);
+        // }
+        // if (isnan(dvx_dz)) {
+        //     printf("update_stress_coarse dvx_dz (%d,%d)\n", ix, iz);
+        // }
+    }else {
+        printf("mask!!!!\n");
     }
+
 }
 
 __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, int cur) {
@@ -267,13 +272,16 @@ __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, i
         );
 
         // NaN checks
-        if (isnan(dsx_dx)) {
-            printf("update_velocity_coarse dsx_dx (%d,%d)\n", ix, iz);
-        }
-        if (isnan(dtxz_dz)) {
-            printf("update_velocity_coarse dtxz_dz (%d,%d)\n", ix, iz);
-        }
+        // if (isnan(dsx_dx)) {
+        //     printf("update_velocity_coarse dsx_dx (%d,%d)\n", ix, iz);
+        // }
+        // if (isnan(dtxz_dz)) {
+        //     printf("update_velocity_coarse dtxz_dz (%d,%d)\n", ix, iz);
+        // }
+    }else {
+        printf("mask!!!!\n");
     }
+
 
     if (tex1Dfetch<int>(vz_mask, iz * (nx - 1) + ix) == -1) {
         float dsz_dz = 0;
@@ -309,13 +317,16 @@ __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, i
         );
 
         // NaN checks
-        if (isnan(dsz_dz)) {
-            printf("update_velocity_coarse dsz_dz (%d,%d)\n", ix, iz);
-        }
-        if (isnan(dtxz_dx)) {
-            printf("update_velocity_coarse dtxz_dx (%d,%d)\n", ix, iz);
-        }
+        // if (isnan(dsz_dz)) {
+        //     printf("update_velocity_coarse dsz_dz (%d,%d)\n", ix, iz);
+        // }
+        // if (isnan(dtxz_dx)) {
+        //     printf("update_velocity_coarse dtxz_dx (%d,%d)\n", ix, iz);
+        // }
+    }else {
+        printf("mask!!!!\n");
     }
+
 }
 
 __global__ void update_stress_fine(Core core, Model model, int cur, int zone) {

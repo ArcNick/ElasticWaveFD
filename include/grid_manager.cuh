@@ -8,6 +8,8 @@
 #define LUT_SIZE 128
 #define LAGRANGE_ORDER 6
 
+enum FINE_FLAG{FINE_OFF = 0, FINE_ON = 1};
+
 struct FD_n {
     int n_x;
     int n_z;
@@ -85,7 +87,7 @@ public:
     cudaTextureObject_t tex_txz_mask;
 
 private:
-
+    FINE_FLAG FINE;
 
     void load_from_file(const std::string &file);
     void memory_allocate();
