@@ -9,7 +9,7 @@
 
  - **编译/运行**
      ```bash
-     nvcc -rdc=true -I include src/*.cu src/cJSON.c -o bin/main_debug -std=c++17 -lm
+     nvcc -rdc=true -I include src/*.cu -L./lib -lcjson -o bin/main_debug -std=c++17 -lm
      time ./bin/main_debug
      ```
 
@@ -19,4 +19,5 @@
      ```
 
 # 图片生成
-运行 tools/getImages.py 即可生成 JPG 格式的波场图片，输出到 /snapshot_images 目录下.
+运行 tools/getImages.py 输出到 /snapshot_images 目录下，只能用于纯粗网格
+tools/cop.py 输出到 /images，可以输出用粗细网格，但有问题。

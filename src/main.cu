@@ -1,12 +1,16 @@
 #include <vector>
 #include <iostream>
+#include <filesystem>
 #include "kernels.cuh"
 #include "params.cuh"
+
+namespace fs = std::filesystem;
 
 float buffer[2048];
 
 void output_snapshots(GridManager &gm, int it, float dt, int time);
 void output_record(const GridManager &gm, int z, FILE *fp, int time);
+bool clear_folder(const fs::path& dir);
 
 __global__ void debug_kernel(float *f, int time, int it) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
@@ -99,6 +103,7 @@ int main() {
         cudaStreamCreate(&stream_fi[i]);
     }
 
+    clear_folder("./output");
     system("mkdir -p ./output/record");
     system("mkdir -p ./output/vx");
     system("mkdir -p ./output/vz");
@@ -111,6 +116,16 @@ int main() {
         std::cerr << "Failed to open output file for recording." << std::endl;
         return -1;
     }
+
+    // int *temp = new int[500 * 500]();
+    // cudaMemcpy(temp, gm.core_mask.sx, 500 * 500 * sizeof(int), cudaMemcpyDeviceToHost);
+    // char buf[32];
+    // snprintf(buf, sizeof(buf), "output/mask/mask.bin");
+    // std::string filename = buf;
+    // FILE *fpp = fopen(filename.c_str(), "wb");
+    // fwrite(temp, sizeof(int), 500 * 500, fpp);
+    // fclose(fpp);
+    // delete[] temp;
 
     // debug_kernel<<<1, 1>>>(nullptr, 0, 0);
     for (int it = 0; it < params.nt; it++) {
@@ -206,4 +221,13 @@ void output_record(const GridManager &gm, int z, FILE *fp, int time) {
         cudaMemcpyDeviceToHost
     );
     fwrite(buffer, sizeof(float), gm.nx_coarse - 1, fp);
+}
+
+bool clear_folder(const fs::path& dir) {
+    std::error_code ec;
+    fs::remove_all(dir, ec);
+    if (ec) {
+        return 0;
+    }
+    return fs::create_directory(dir, ec);
 }

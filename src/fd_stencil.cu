@@ -121,12 +121,12 @@ __device__ float samp_vx_z(
     const float *coeff = &lagrange_coeff[tz_idx * LAGRANGE_ORDER];
 
     float sum = 0.0f;
-    sum += coeff[0] * __ldg(f + max(0, min(iz0 - 2, nz - 1)) * (nx - 1) + ix);
+    // sum += coeff[0] * __ldg(f + max(0, min(iz0 - 2, nz - 1)) * (nx - 1) + ix);
     sum += coeff[1] * __ldg(f + max(0, min(iz0 - 1, nz - 1)) * (nx - 1) + ix);
     sum += coeff[2] * __ldg(f + max(0, min(iz0, nz - 1))     * (nx - 1) + ix);
     sum += coeff[3] * __ldg(f + max(0, min(iz0 + 1, nz - 1)) * (nx - 1) + ix);
     sum += coeff[4] * __ldg(f + max(0, min(iz0 + 2, nz - 1)) * (nx - 1) + ix);
-    sum += coeff[5] * __ldg(f + max(0, min(iz0 + 3, nz - 1)) * (nx - 1) + ix);
+    // sum += coeff[5] * __ldg(f + max(0, min(iz0 + 3, nz - 1)) * (nx - 1) + ix);
 
     return sum;
 }

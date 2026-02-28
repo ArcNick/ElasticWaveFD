@@ -6,7 +6,7 @@
 #include <cuda_runtime.h>
 
 #define LUT_SIZE 128
-#define LAGRANGE_ORDER 6
+#define LAGRANGE_ORDER 4
 
 enum FINE_FLAG{FINE_OFF = 0, FINE_ON = 1};
 

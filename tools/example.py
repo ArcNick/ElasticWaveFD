@@ -10,9 +10,9 @@ dx = 1.0          # 网格步长（米）
 dz = 1.0
 
 # 介质参数（各向同性均匀）
-rho = 2000.0       # 密度 kg/m³
-vp = 3000.0        # P波速度 m/s
-vs = 1500.0        # S波速度 m/s
+rho = 2100.0       # 密度 kg/m³
+vp = 3500.0        # P波速度 m/s
+vs = 1800.0        # S波速度 m/s
 # 弹性常数（根据各向同性关系计算）
 C11 = rho * vp**2
 C55 = rho * vs**2
@@ -22,8 +22,8 @@ C33 = C11
 # 细网格区域（粗网格坐标，确保在范围内）
 fine_regions = [
     {
-        "x_start": 420, "x_end": 427,   # x方向范围
-        "z_start": 420, "z_end": 427,   # z方向范围
+        "x_start": 400, "x_end": 430,   # x方向范围
+        "z_start": 400, "z_end": 430,   # z方向范围
         "N": 3                           # 加密倍数
     }
 ]
@@ -33,17 +33,17 @@ posx = nx // 2
 posz = nz // 2
 
 # 时间参数（示例值，可根据需要调整）
-fpeak = 20.0       # 主频 Hz
-dt = 0.00005         # 时间步长 s
-nt = 20000          # 总时间步数
-snapshot = 200     # 快照间隔
+fpeak = 40.0       # 主频 Hz
+dt = 1e-6          # 时间步长 s
+nt = 320000          # 总时间步数
+snapshot = 8000     # 快照间隔
 
 # CPML参数（标准值）
-cpml_thickness = 10
-cpml_N = 2
+cpml_thickness = 15
+cpml_N = 3
 cp_max = vp        # 最大纵波速度
 Rc = 0.001
-kappa0 = 1.0
+kappa0 = 1.2
 
 # ==================== 创建目录结构 ====================
 base_dir = "models"
