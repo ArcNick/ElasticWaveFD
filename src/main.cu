@@ -94,7 +94,6 @@ int main() {
     gm.memcpy_model_h2d();
     
     std::unique_ptr<float[]> wavelet = params.ricker_wavelet();
-    const int NUM_STREAM = gm.fine_info.size() + 1;
 
     cudaStream_t stream_co;
     cudaStreamCreate(&stream_co);
@@ -117,15 +116,38 @@ int main() {
         return -1;
     }
 
-    // int *temp = new int[500 * 500]();
-    // cudaMemcpy(temp, gm.core_mask.sx, 500 * 500 * sizeof(int), cudaMemcpyDeviceToHost);
-    // char buf[32];
-    // snprintf(buf, sizeof(buf), "output/mask/mask.bin");
-    // std::string filename = buf;
-    // FILE *fpp = fopen(filename.c_str(), "wb");
-    // fwrite(temp, sizeof(int), 500 * 500, fpp);
-    // fclose(fpp);
-    // delete[] temp;
+    int *temp = new int[200 * 200]();
+    cudaMemcpy(temp, gm.core_mask.sx, 200 * 200 * sizeof(int), cudaMemcpyDeviceToHost);
+    char buffff[32];
+    system("mkdir -p ./output/mask");
+    snprintf(buffff, sizeof(buffff), "output/mask/mask_sigma.bin");
+    std::string filename = buffff;
+    FILE *fpp = fopen(filename.c_str(), "wb");
+    fwrite(temp, sizeof(int), 200 * 200, fpp);
+    fclose(fpp);
+
+    snprintf(buffff, sizeof(buffff), "output/mask/mask_vx.bin");
+    cudaMemcpy(temp, gm.core_mask.vx, 199 * 200 * sizeof(int), cudaMemcpyDeviceToHost);
+    filename = buffff;
+    fpp = fopen(filename.c_str(), "wb");
+    fwrite(temp, sizeof(int), 199 * 200, fpp);
+    fclose(fpp);
+
+    snprintf(buffff, sizeof(buffff), "output/mask/mask_vz.bin");
+    cudaMemcpy(temp, gm.core_mask.vz, 200 * 199 * sizeof(int), cudaMemcpyDeviceToHost);
+    filename = buffff;
+    fpp = fopen(filename.c_str(), "wb");
+    fwrite(temp, sizeof(int), 200 * 199, fpp);
+    fclose(fpp);
+
+    snprintf(buffff, sizeof(buffff), "output/mask/mask_tau.bin");
+    cudaMemcpy(temp, gm.core_mask.txz, 199 * 199 * sizeof(int), cudaMemcpyDeviceToHost);
+    filename = buffff;
+    fpp = fopen(filename.c_str(), "wb");
+    fwrite(temp, sizeof(int), 199 * 199, fpp);
+    fclose(fpp);
+
+    delete[] temp;
 
     // debug_kernel<<<1, 1>>>(nullptr, 0, 0);
     for (int it = 0; it < params.nt; it++) {

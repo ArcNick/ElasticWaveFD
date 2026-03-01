@@ -14,6 +14,16 @@ import matplotlib.pyplot as plt
 # 可选：提高 figure 打开数量警告阈值
 plt.rcParams['figure.max_open_warning'] = 50
 
+# ==================== 控制开关 ====================
+CROP_PML_HALO = False  # True: 裁剪 PML 和 halo; False: 不裁剪，显示完整区域
+
+# ==================== 细网格显示控制 ====================
+SHOW_FINE_GRIDS = True               # 是否显示细网格（整体开关）
+FINE_GRID_INDICES = []              # 指定要显示的细网格索引列表
+                                       # None    : 显示所有细网格
+                                       # []      : 不显示任何细网格
+                                       # [0,2]   : 只显示索引 0 和 2 的细网格
+
 # ==================== 颜色范围常量 ====================
 VX_VZ_RANGE = (-1e-7, 1e-7)          # 速度分量
 SX_SZ_RANGE = (-5e-1, 5e-1)          # 正应力
@@ -106,108 +116,23 @@ def get_coarse_dims_by_type(nx_full, nz_full, pml, field_type):
     else:
         raise ValueError(f"Unknown field type: {field_type}")
 
-    # 物理区域切片
-    halo_cfg = HALO[field_type]
-    left = pml + halo_cfg['left']
-    right = nx_coarse - (pml + halo_cfg['right'])
-    top = pml + halo_cfg['top']
-    bottom = nz_coarse - (pml + halo_cfg['bottom'])
-    phys_slice = (slice(top, bottom), slice(left, right))
+    if CROP_PML_HALO:
+        # 物理区域切片（裁剪 PML 和 halo）
+        halo_cfg = HALO[field_type]
+        left = pml + halo_cfg['left']
+        right = nx_coarse - (pml + halo_cfg['right'])
+        top = pml + halo_cfg['top']
+        bottom = nz_coarse - (pml + halo_cfg['bottom'])
+        phys_slice = (slice(top, bottom), slice(left, right))
+    else:
+        # 不裁剪，使用完整区域
+        phys_slice = (slice(0, nz_coarse), slice(0, nx_coarse))
+        phys_nx = nx_coarse
+        phys_nz = nz_coarse
 
     return nx_coarse, nz_coarse, phys_slice, phys_nx, phys_nz
 
 # ---------- 构建完整波场快照 ----------
-# def build_full_snapshot(fieldname, filepath, modelinfo, pml_thick):
-#     cgrid = modelinfo["coarse"]
-#     fine_list = modelinfo.get("fine", [])
-#     dx, dz = cgrid["dx"], cgrid["dz"]
-
-#     # 确定场量类型
-#     if fieldname == 'txz':
-#         field_type = 'half_xy'
-#     elif fieldname == 'vx':
-#         field_type = 'half_x'
-#     elif fieldname == 'vz':
-#         field_type = 'half_z'
-#     else:
-#         field_type = 'full'
-
-#     # 获取该场量的粗网格总点数及物理切片
-#     nx_coarse, nz_coarse, phys_slice, phys_nx, phys_nz = get_coarse_dims_by_type(
-#         cgrid["nx"], cgrid["nz"], pml_thick, field_type)
-#     coarse_size = nx_coarse * nz_coarse
-
-#     # 读取整个文件
-#     data = np.fromfile(filepath, dtype=np.float32)
-#     total_elem = len(data)
-
-#     if total_elem < coarse_size:
-#         print_progress(f"错误: {filepath} 需要至少 {coarse_size} 个元素（粗网格），实际 {total_elem}，跳过")
-#         return None
-
-#     # 提取粗网格数据并裁剪物理区域
-#     coarse_data = data[:coarse_size].reshape((nz_coarse, nx_coarse))
-#     coarse_phys = coarse_data[phys_slice]  # (phys_nz, phys_nx)
-
-#     # 初始化完整数组（物理区域大小）
-#     full_arr = coarse_phys.copy()
-
-#     # 处理细网格块
-#     offset = coarse_size
-#     for idx, fine in enumerate(fine_list):
-#         N = fine["N"]
-#         x0, x1 = fine["x_start"], fine["x_end"]
-#         z0, z1 = fine["z_start"], fine["z_end"]
-
-#         # 计算细网格物理区域大小（无halo）
-#         if field_type == 'half_xy':
-#             nx_fine = (x1 - x0) * N
-#             nz_fine = (z1 - z0) * N
-#         elif field_type == 'half_x':
-#             nx_fine = (x1 - x0) * N
-#             nz_fine = (z1 - z0) * N + 1
-#         elif field_type == 'half_z':
-#             nx_fine = (x1 - x0) * N + 1
-#             nz_fine = (z1 - z0) * N
-#         else:  # full
-#             nx_fine = (x1 - x0) * N + 1
-#             nz_fine = (z1 - z0) * N + 1
-
-#         block_size = nx_fine * nz_fine
-#         remain = total_elem - offset
-#         if remain < block_size:
-#             print_progress(f"错误: {filepath} 细网格块 {idx} 需要 {block_size} 个元素，剩余 {remain}，跳过后续")
-#             break
-
-#         fine_data = data[offset:offset+block_size].reshape((nz_fine, nx_fine))
-
-#         # 计算细网格块在粗网格物理区域中的起始索引
-#         start_i = x0 - (pml_thick + HALO[field_type]['left'])
-#         start_j = z0 - (pml_thick + HALO[field_type]['top'])
-
-#         # 边界检查
-#         if start_i < 0 or start_j < 0 or start_i >= phys_nx or start_j >= phys_nz:
-#             offset += block_size
-#             continue
-
-#         # 细网格步长
-#         fine_dx = dx / N
-#         fine_dz = dz / N
-
-#         # 重采样到粗网格分辨率
-#         fine_resampled = zoom(fine_data, (dz/fine_dz, dx/fine_dx), order=1)
-#         rh, rw = fine_resampled.shape
-
-#         # 插入区域
-#         i0 = start_i
-#         i1 = min(start_i + rw, phys_nx)
-#         j0 = start_j
-#         j1 = min(start_j + rh, phys_nz)
-
-#         full_arr[j0:j1, i0:i1] = fine_resampled[0:(j1-j0), 0:(i1-i0)]
-#         offset += block_size
-
-#     return full_arr
 def build_full_snapshot(fieldname, filepath, modelinfo, pml_thick):
     cgrid = modelinfo["coarse"]
     fine_list = modelinfo.get("fine", [])
@@ -237,6 +162,10 @@ def build_full_snapshot(fieldname, filepath, modelinfo, pml_thick):
 
     full_arr = coarse_phys.copy()
 
+    # 如果不显示任何细网格，直接返回粗网格部分
+    if not SHOW_FINE_GRIDS:
+        return full_arr
+
     offset = coarse_size
     for idx, fine in enumerate(fine_list):
         N = fine["N"]
@@ -245,7 +174,7 @@ def build_full_snapshot(fieldname, filepath, modelinfo, pml_thick):
 
         # 细网格有效区尺寸
         if field_type == 'half_xy':
-            nx_fine = (x1 - x0) * N     # 注意：边界是闭区间
+            nx_fine = (x1 - x0) * N
             nz_fine = (z1 - z0) * N
         elif field_type == 'half_x':
             nx_fine = (x1 - x0) * N
@@ -263,48 +192,58 @@ def build_full_snapshot(fieldname, filepath, modelinfo, pml_thick):
             print_progress(f"细网格块 {idx} 长度不足, 跳过")
             break
 
-        fine_data = data[offset:offset + block_size].reshape((nz_fine, nx_fine))
+        # 判断当前细网格是否需要显示
+        show_this = (FINE_GRID_INDICES is None) or (idx in FINE_GRID_INDICES)
 
-        # --- 起始下标严格修正 ---
-        # halo, pml 修正: 有效区（粗网格裁剪后）起点 = x0 - (pml + halo[left])、z0同理
-        if field_type == 'half_xy':
-            halo_left = HALO[field_type]['left']
-            halo_top  = HALO[field_type]['top']
-        elif field_type == 'half_x':
-            halo_left = HALO[field_type]['left']
-            halo_top  = HALO[field_type]['top']
-        elif field_type == 'half_z':
-            halo_left = HALO[field_type]['left']
-            halo_top  = HALO[field_type]['top']
-        else:
-            halo_left = HALO[field_type]['left']
-            halo_top  = HALO[field_type]['top']
+        if show_this:
+            fine_data = data[offset:offset + block_size].reshape((nz_fine, nx_fine))
 
-        # 粗网格有效区目标插入索引
-        insert_i0 = x0 - (pml_thick + halo_left)
-        insert_i1 = x1 - (pml_thick + halo_left) + 1  # 因为右闭包
+            # --- 起始下标严格修正 ---
+            if CROP_PML_HALO:
+                # 裁剪模式：需要减去 PML 和 halo
+                halo_left = HALO[field_type]['left']
+                halo_top  = HALO[field_type]['top']
+                
+                # 粗网格有效区目标插入索引
+                insert_i0 = x0 - (pml_thick + halo_left)
+                insert_i1 = x1 - (pml_thick + halo_left) + 1  # 因为右闭包
+                insert_j0 = z0 - (pml_thick + halo_top)
+                insert_j1 = z1 - (pml_thick + halo_top) + 1
+            else:
+                # 不裁剪模式：直接使用粗网格索引
+                insert_i0 = x0
+                insert_i1 = x1 + 1
+                insert_j0 = z0
+                insert_j1 = z1 + 1
 
-        insert_j0 = z0 - (pml_thick + halo_top)
-        insert_j1 = z1 - (pml_thick + halo_top) + 1
+            # 边界检查
+            if insert_i0 < 0 or insert_i1 > phys_nx or insert_j0 < 0 or insert_j1 > phys_nz:
+                print_progress(f"警告: 细网格块 {idx} 插入区域超出边界，跳过")
+                offset += block_size
+                continue
 
-        # 粗网格有效区像素宽度
-        target_width  = insert_i1 - insert_i0
-        target_height = insert_j1 - insert_j0
+            # 粗网格有效区像素宽度
+            target_width  = insert_i1 - insert_i0
+            target_height = insert_j1 - insert_j0
 
-        # 细网格区插值到粗网格像素数
-        zoom_x = target_width / fine_data.shape[1]
-        zoom_y = target_height / fine_data.shape[0]
-        fine_resampled = zoom(fine_data, (zoom_y, zoom_x), order=1)
+            # 细网格区插值到粗网格像素数
+            zoom_x = target_width / fine_data.shape[1]
+            zoom_y = target_height / fine_data.shape[0]
+            fine_resampled = zoom(fine_data, (zoom_y, zoom_x), order=1)
 
-        # 安全防护，必须完全对齐
-        actual_h, actual_w = fine_resampled.shape
-        if actual_h != target_height or actual_w != target_width:
-            # 防止插值取整偏差
-           fine_resampled = fine_resampled[:target_height, :target_width]
+            # 安全防护，必须完全对齐
+            actual_h, actual_w = fine_resampled.shape
+            if actual_h != target_height or actual_w != target_width:
+                # 防止插值取整偏差
+                fine_resampled = fine_resampled[:target_height, :target_width]
 
-        full_arr[insert_j0:insert_j1, insert_i0:insert_i1] = fine_resampled
+            full_arr[insert_j0:insert_j1, insert_i0:insert_i1] = fine_resampled
+
+        # 无论是否显示，都要增加偏移量，以保证后续数据读取正确
+        offset += block_size
 
     return full_arr
+
 def plot_snapshot(fieldname, filebase, arr, cgrid):
     dx, dz = cgrid["dx"], cgrid["dz"]
     vmin, vmax = FIELD_RANGE[fieldname]
@@ -369,6 +308,20 @@ def main():
     modelinfo = load_json(MODEL_JSON)
     paramsinfo = load_json(PARAMS_JSON)
     pml_thick = paramsinfo["cpml"]["thickness"]
+
+    # 显示当前模式
+    mode_str = "裁剪 PML 和 halo" if CROP_PML_HALO else "显示完整区域（包含 PML 和 halo）"
+    print_progress(f"当前模式: {mode_str}")
+    
+    fine_mode_str = f"显示细网格: {SHOW_FINE_GRIDS}"
+    if SHOW_FINE_GRIDS:
+        if FINE_GRID_INDICES is None:
+            fine_mode_str += " (所有细网格)"
+        else:
+            fine_mode_str += f" (索引列表: {FINE_GRID_INDICES})"
+    else:
+        fine_mode_str += " (不显示细网格)"
+    print_progress(f"当前细网格设置: {fine_mode_str}")
 
     # 收集所有波场任务
     tasks = []

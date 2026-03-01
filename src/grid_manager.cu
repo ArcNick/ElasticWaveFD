@@ -291,56 +291,48 @@ void GridManager::build_mask() {
 
 void GridManager::build_n() {
     if (FINE == FINE_OFF) return;
-    int offset_vx_n = 0;
-    int offset_vz_n = 0;
-    int offset_sx_n = 0;
-    int offset_sz_n = 0;
-    int offset_txz_n = 0;
+    // int offset_vx_n = 0;
+    // int offset_vz_n = 0;
+    // int offset_sx_n = 0;
+    // int offset_sz_n = 0;
+    // int offset_txz_n = 0;
+    int offset_n = 0;
     for (int i = 0; i < fine_info.size(); i++) {
-        offset_vx_n += (fine_info[i].lenx - 1) * fine_info[i].lenz;
-        offset_vz_n += fine_info[i].lenx * (fine_info[i].lenz - 1);
-        offset_sx_n += fine_info[i].lenx * fine_info[i].lenz;
-        offset_sz_n += fine_info[i].lenx * fine_info[i].lenz;
-        offset_txz_n += (fine_info[i].lenx - 1) * (fine_info[i].lenz - 1);
+        offset_n += fine_info[i].lenx * fine_info[i].lenz;
     }
 
-    FD_n *vx_n_h = new FD_n[offset_vx_n]();
-    FD_n *vz_n_h = new FD_n[offset_vz_n]();
-    FD_n *sx_n_h = new FD_n[offset_sx_n]();
-    FD_n *sz_n_h = new FD_n[offset_sz_n]();
-    FD_n *txz_n_h = new FD_n[offset_txz_n]();
+    FD_n *vx_n_h = new FD_n[offset_n]();
+    FD_n *vz_n_h = new FD_n[offset_n]();
+    FD_n *sx_n_h = new FD_n[offset_n]();
+    FD_n *sz_n_h = new FD_n[offset_n]();
+    FD_n *txz_n_h = new FD_n[offset_n]();
 
-    offset_vx_n = 0;
-    offset_vz_n = 0;
-    offset_sx_n = 0;
-    offset_sz_n = 0;
-    offset_txz_n = 0;
+    // offset_vx_n = 0;
+    // offset_vz_n = 0;
+    // offset_sx_n = 0;
+    // offset_sz_n = 0;
+    // offset_txz_n = 0;
+    
+    offset_n = 0;
 
     for (int i = 0; i < fine_info.size(); i++) {
-        int z_start = fine_info[i].z_start;
-        int z_end = fine_info[i].z_end;
-        int x_start = fine_info[i].x_start;
-        int x_end = fine_info[i].x_end;
-        int lz = (z_end - z_start) * fine_info[i].N + 1;
-        int lx = (x_end - x_start) * fine_info[i].N + 1;
-        fine_info[i].lenx = lx;
-        fine_info[i].lenz = lz;
-
+        int lz = fine_info[i].lenz;
+        int lx = fine_info[i].lenx;
         for (int iz = 0; iz < lz; iz++) {
             for (int ix = 0; ix < lx; ix++) {
                 int n_x_int = 0, n_x_half = 0, n_z_int = 0, n_z_half = 0;
-                if (0 <= iz && iz < lz) {
-                    n_z_int = std::min({ iz - 0 + 1, lz - 2 - iz + 1, 4 });
-                }
-                if (0 <= ix && ix < lx) {
-                    n_x_int = std::min({ ix - 0 + 1, lx - 2 - ix + 1, 4 });
-                }
-                if (0 <= iz && iz < lz - 1) {
-                    n_z_half = std::min({ iz - 1 + 1, lz - 1 - iz + 1, 4 });
-                }
-                if (0 <= ix && ix < lx - 1) {
-                    n_x_half = std::min({ ix - 1 + 1, lx - 1 - ix + 1, 4 });
-                }
+                // if (0 <= iz && iz < lz) {
+                //     n_z_int = std::min({ iz - 0 + 1, lz - 2 - iz + 1, 4 });
+                // }
+                // if (0 <= ix && ix < lx) {
+                //     n_x_int = std::min({ ix - 0 + 1, lx - 2 - ix + 1, 4 });
+                // }
+                // if (0 <= iz && iz < lz - 1) {
+                //     n_z_half = std::min({ iz - 1 + 1, lz - 1 - iz + 1, 4 });
+                // }
+                // if (0 <= ix && ix < lx - 1) {
+                //     n_x_half = std::min({ ix - 1 + 1, lx - 1 - ix + 1, 4 });
+                // }
 
 
                 if (0 <= iz && iz < lz) {
@@ -357,40 +349,42 @@ void GridManager::build_n() {
                 }
                 // vx
                 if (ix < lx - 1) {
-                    vx_n_h[offset_vx_n + iz * (lx - 1) + ix].n_x = n_x_half;
-                    vx_n_h[offset_vx_n + iz * (lx - 1) + ix].n_z = n_z_int;
+                    vx_n_h[offset_n + iz * lx + ix].n_x = n_x_half;
+                    vx_n_h[offset_n + iz * lx + ix].n_z = n_z_int;
                 }
                 // vz
                 if (iz < lz - 1) {
-                    vz_n_h[offset_vz_n + iz * lx + ix].n_x = n_x_int;
-                    vz_n_h[offset_vz_n + iz * lx + ix].n_z = n_z_half;
+                    vz_n_h[offset_n + iz * lx + ix].n_x = n_x_int;
+                    vz_n_h[offset_n + iz * lx + ix].n_z = n_z_half;
                 }
                 // sx
-                sx_n_h[offset_sx_n + iz * lx + ix].n_x = n_x_int;
-                sx_n_h[offset_sx_n + iz * lx + ix].n_z = n_z_int;
+                sx_n_h[offset_n + iz * lx + ix].n_x = n_x_int;
+                sx_n_h[offset_n + iz * lx + ix].n_z = n_z_int;
                 // sz
-                sz_n_h[offset_sz_n + iz * lx + ix].n_x = n_x_int;
-                sz_n_h[offset_sz_n + iz * lx + ix].n_z = n_z_int;
+                sz_n_h[offset_n + iz * lx + ix].n_x = n_x_int;
+                sz_n_h[offset_n + iz * lx + ix].n_z = n_z_int;
                 // txz
                 if (ix < lx - 1 && iz < lz - 1) {
-                    txz_n_h[offset_txz_n + iz * (lx - 1) + ix].n_x = n_x_half;
-                    txz_n_h[offset_txz_n + iz * (lx - 1) + ix].n_z = n_z_half;
+                    txz_n_h[offset_n + iz * lx + ix].n_x = n_x_half;
+                    txz_n_h[offset_n + iz * lx + ix].n_z = n_z_half;
                 }
             }
         }
 
-        offset_vx_n += (fine_info[i].lenx - 1) * fine_info[i].lenz;
-        offset_vz_n += fine_info[i].lenx * (fine_info[i].lenz - 1);
-        offset_sx_n += fine_info[i].lenx * fine_info[i].lenz;
-        offset_sz_n += fine_info[i].lenx * fine_info[i].lenz;
-        offset_txz_n += (fine_info[i].lenx - 1) * (fine_info[i].lenz - 1);
+        // offset_vx_n += (fine_info[i].lenx - 1) * fine_info[i].lenz;
+        // offset_vz_n += fine_info[i].lenx * (fine_info[i].lenz - 1);
+        // offset_sx_n += fine_info[i].lenx * fine_info[i].lenz;
+        // offset_sz_n += fine_info[i].lenx * fine_info[i].lenz;
+        // offset_txz_n += (fine_info[i].lenx - 1) * (fine_info[i].lenz - 1);
+
+        offset_n += lx * lz;
     }
 
-    cudaMemcpy(vx_n, vx_n_h, offset_vx_n * sizeof(FD_n), cudaMemcpyHostToDevice);
-    cudaMemcpy(vz_n, vz_n_h, offset_vz_n * sizeof(FD_n), cudaMemcpyHostToDevice);
-    cudaMemcpy(sx_n, sx_n_h, offset_sx_n * sizeof(FD_n), cudaMemcpyHostToDevice);
-    cudaMemcpy(sz_n, sz_n_h, offset_sz_n * sizeof(FD_n), cudaMemcpyHostToDevice);
-    cudaMemcpy(txz_n, txz_n_h, offset_txz_n * sizeof(FD_n), cudaMemcpyHostToDevice);
+    cudaMemcpy(vx_n, vx_n_h, offset_n * sizeof(FD_n), cudaMemcpyHostToDevice);
+    cudaMemcpy(vz_n, vz_n_h, offset_n * sizeof(FD_n), cudaMemcpyHostToDevice);
+    cudaMemcpy(sx_n, sx_n_h, offset_n * sizeof(FD_n), cudaMemcpyHostToDevice);
+    cudaMemcpy(sz_n, sz_n_h, offset_n * sizeof(FD_n), cudaMemcpyHostToDevice);
+    cudaMemcpy(txz_n, txz_n_h, offset_n * sizeof(FD_n), cudaMemcpyHostToDevice);
 
     // 创建 n 数组纹理对象并保存到成员变量
     cudaResourceDesc resDesc;
@@ -410,31 +404,31 @@ void GridManager::build_n() {
 
     // vx_n
     resDesc.res.linear.devPtr = vx_n;
-    resDesc.res.linear.sizeInBytes = offset_vx_n * sizeof(FD_n);
+    resDesc.res.linear.sizeInBytes = offset_n * sizeof(FD_n);
     cudaCreateTextureObject(&tex_vx_n, &resDesc, &texDesc, NULL);
     cudaMemcpyToSymbol(vx_n_tex, &tex_vx_n, sizeof(cudaTextureObject_t));
 
     // vz_n
     resDesc.res.linear.devPtr = vz_n;
-    resDesc.res.linear.sizeInBytes = offset_vz_n * sizeof(FD_n);
+    resDesc.res.linear.sizeInBytes = offset_n * sizeof(FD_n);
     cudaCreateTextureObject(&tex_vz_n, &resDesc, &texDesc, NULL);
     cudaMemcpyToSymbol(vz_n_tex, &tex_vz_n, sizeof(cudaTextureObject_t));
 
     // sx_n
     resDesc.res.linear.devPtr = sx_n;
-    resDesc.res.linear.sizeInBytes = offset_sx_n * sizeof(FD_n);
+    resDesc.res.linear.sizeInBytes = offset_n * sizeof(FD_n);
     cudaCreateTextureObject(&tex_sx_n, &resDesc, &texDesc, NULL);
     cudaMemcpyToSymbol(sx_n_tex, &tex_sx_n, sizeof(cudaTextureObject_t));
 
     // sz_n
     resDesc.res.linear.devPtr = sz_n;
-    resDesc.res.linear.sizeInBytes = offset_sz_n * sizeof(FD_n);
+    resDesc.res.linear.sizeInBytes = offset_n * sizeof(FD_n);
     cudaCreateTextureObject(&tex_sz_n, &resDesc, &texDesc, NULL);
     cudaMemcpyToSymbol(sz_n_tex, &tex_sz_n, sizeof(cudaTextureObject_t));
 
     // txz_n
     resDesc.res.linear.devPtr = txz_n;
-    resDesc.res.linear.sizeInBytes = offset_txz_n * sizeof(FD_n);
+    resDesc.res.linear.sizeInBytes = offset_n * sizeof(FD_n);
     cudaCreateTextureObject(&tex_txz_n, &resDesc, &texDesc, NULL);
     cudaMemcpyToSymbol(txz_n_tex, &tex_txz_n, sizeof(cudaTextureObject_t));
 
@@ -536,23 +530,25 @@ void GridManager::memory_allocate() {
     cudaMalloc((void**)&model_d.C55, offset_time_sx * sizeof(float));
 
     // compute n arrays total size
-    int vx_n_size = 0, vz_n_size = 0, sx_n_size = 0, sz_n_size = 0, txz_n_size = 0;
+    // int vx_n_size = 0, vz_n_size = 0, sx_n_size = 0, sz_n_size = 0, txz_n_size = 0;
+    int n_size = 0;
     for (int i = 0; i < fine_info.size(); i++) {
         int lz = (fine_info[i].z_end - fine_info[i].z_start) * fine_info[i].N + 1;
         int lx = (fine_info[i].x_end - fine_info[i].x_start) * fine_info[i].N + 1;
-        vx_n_size += (lx - 1) * lz;
-        vz_n_size += lx * (lz - 1);
-        sx_n_size += lx * lz;
-        sz_n_size += lx * lz;
-        txz_n_size += (lx - 1) * (lz - 1);
+        n_size += lx * lz;
+        // vx_n_size += (lx - 1) * lz;
+        // vz_n_size += lx * (lz - 1);
+        // sx_n_size += lx * lz;
+        // sz_n_size += lx * lz;
+        // txz_n_size += (lx - 1) * (lz - 1);
     }
 
     // device n arrays
-    cudaMalloc((void**)&vx_n, vx_n_size * sizeof(FD_n));
-    cudaMalloc((void**)&vz_n, vz_n_size * sizeof(FD_n));
-    cudaMalloc((void**)&sx_n, sx_n_size * sizeof(FD_n));
-    cudaMalloc((void**)&sz_n, sz_n_size * sizeof(FD_n));
-    cudaMalloc((void**)&txz_n, txz_n_size * sizeof(FD_n));
+    cudaMalloc((void**)&vx_n, n_size * sizeof(FD_n));
+    cudaMalloc((void**)&vz_n, n_size * sizeof(FD_n));
+    cudaMalloc((void**)&sx_n, n_size * sizeof(FD_n));
+    cudaMalloc((void**)&sz_n, n_size * sizeof(FD_n));
+    cudaMalloc((void**)&txz_n, n_size * sizeof(FD_n));
 }
 
 void GridManager::build_insterp_LUT() {

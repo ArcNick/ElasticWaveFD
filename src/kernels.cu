@@ -333,11 +333,11 @@ __global__ void update_stress_fine(Core core, Model model, int cur, int zone) {
     float dvz_dx = 0;
     float dvz_dz = 0;
     
-    if (ix < fines[zone].lenx - 1) {
+    if (1) {
         dvx_dx = dvx_dx_8th(core.vx, ix, iz, cur ^ 1, zone);
         dvx_dz = dvx_dz_8th(core.vx, ix, iz, cur ^ 1, zone);
     }
-    if (iz < fines[zone].lenz - 1) {
+    if (1) {
         dvz_dx = dvz_dx_8th(core.vz, ix, iz, cur ^ 1, zone);
         dvz_dz = dvz_dz_8th(core.vz, ix, iz, cur ^ 1, zone);
     }

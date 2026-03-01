@@ -121,16 +121,15 @@ __device__ float samp_vx_z(
     const float *coeff = &lagrange_coeff[tz_idx * LAGRANGE_ORDER];
 
     float sum = 0.0f;
-    // sum += coeff[0] * __ldg(f + max(0, min(iz0 - 2, nz - 1)) * (nx - 1) + ix);
+    sum += coeff[0] * __ldg(f + max(0, min(iz0 - 2, nz - 1)) * (nx - 1) + ix);
     sum += coeff[1] * __ldg(f + max(0, min(iz0 - 1, nz - 1)) * (nx - 1) + ix);
     sum += coeff[2] * __ldg(f + max(0, min(iz0, nz - 1))     * (nx - 1) + ix);
     sum += coeff[3] * __ldg(f + max(0, min(iz0 + 1, nz - 1)) * (nx - 1) + ix);
-    sum += coeff[4] * __ldg(f + max(0, min(iz0 + 2, nz - 1)) * (nx - 1) + ix);
-    // sum += coeff[5] * __ldg(f + max(0, min(iz0 + 3, nz - 1)) * (nx - 1) + ix);
 
     return sum;
 }
 
+// vx 沿 x 方向插值（z 固定，x 变化）
 __device__ float samp_vx_x(
     float *f, float ix_global, float iz_global
 ) {
@@ -150,12 +149,11 @@ __device__ float samp_vx_x(
     sum += coeff[1] * __ldg(f + iz * (nx - 1) + max(0, min(ix0 - 1, nx - 2)));
     sum += coeff[2] * __ldg(f + iz * (nx - 1) + max(0, min(ix0, nx - 2)));
     sum += coeff[3] * __ldg(f + iz * (nx - 1) + max(0, min(ix0 + 1, nx - 2)));
-    sum += coeff[4] * __ldg(f + iz * (nx - 1) + max(0, min(ix0 + 2, nx - 2)));
-    sum += coeff[5] * __ldg(f + iz * (nx - 1) + max(0, min(ix0 + 3, nx - 2)));
 
     return sum;
 }
 
+// vz 沿 x 方向插值（z 固定？实际是 vz 在 x 方向插值，z 为半格，x 为整格）
 __device__ float samp_vz_x(
     float *f, float ix_global, float iz_global
 ) {
@@ -175,12 +173,11 @@ __device__ float samp_vz_x(
     sum += coeff[1] * __ldg(f + iz * nx + max(0, min(ix0 - 1, nx - 1)));
     sum += coeff[2] * __ldg(f + iz * nx + max(0, min(ix0, nx - 1)));
     sum += coeff[3] * __ldg(f + iz * nx + max(0, min(ix0 + 1, nx - 1)));
-    sum += coeff[4] * __ldg(f + iz * nx + max(0, min(ix0 + 2, nx - 1)));
-    sum += coeff[5] * __ldg(f + iz * nx + max(0, min(ix0 + 3, nx - 1)));
 
     return sum;
 }
 
+// vz 沿 z 方向插值（x 固定，z 变化）
 __device__ float samp_vz_z(
     float *f, float ix_global, float iz_global
 ) {
@@ -200,12 +197,11 @@ __device__ float samp_vz_z(
     sum += coeff[1] * __ldg(f + max(0, min(iz0 - 1, nz - 2)) * nx + ix);
     sum += coeff[2] * __ldg(f + max(0, min(iz0, nz - 2))     * nx + ix);
     sum += coeff[3] * __ldg(f + max(0, min(iz0 + 1, nz - 2)) * nx + ix);
-    sum += coeff[4] * __ldg(f + max(0, min(iz0 + 2, nz - 2)) * nx + ix);
-    sum += coeff[5] * __ldg(f + max(0, min(iz0 + 3, nz - 2)) * nx + ix);
 
     return sum;
 }
 
+// sx 沿 z 方向插值（x 固定）
 __device__ float samp_sx_z(
     float *f, float ix_global, float iz_global
 ) {
@@ -223,12 +219,11 @@ __device__ float samp_sx_z(
     sum += coeff[1] * __ldg(f + max(0, min(iz0 - 1, nz - 1)) * nx + ix);
     sum += coeff[2] * __ldg(f + max(0, min(iz0, nz - 1))     * nx + ix);
     sum += coeff[3] * __ldg(f + max(0, min(iz0 + 1, nz - 1)) * nx + ix);
-    sum += coeff[4] * __ldg(f + max(0, min(iz0 + 2, nz - 1)) * nx + ix);
-    sum += coeff[5] * __ldg(f + max(0, min(iz0 + 3, nz - 1)) * nx + ix);
 
     return sum;
 }
 
+// sz 沿 x 方向插值（z 固定）
 __device__ float samp_sz_x(
     float *f, float ix_global, float iz_global
 ) {
@@ -245,12 +240,11 @@ __device__ float samp_sz_x(
     sum += coeff[1] * __ldg(f + iz * nx + max(0, min(ix0 - 1, nx - 1)));
     sum += coeff[2] * __ldg(f + iz * nx + max(0, min(ix0, nx - 1)));
     sum += coeff[3] * __ldg(f + iz * nx + max(0, min(ix0 + 1, nx - 1)));
-    sum += coeff[4] * __ldg(f + iz * nx + max(0, min(ix0 + 2, nx - 1)));
-    sum += coeff[5] * __ldg(f + iz * nx + max(0, min(ix0 + 3, nx - 1)));
 
     return sum;
 }
 
+// txz 沿 x 方向插值（z 固定）
 __device__ float samp_txz_x(
     float *f, float ix_global, float iz_global
 ) {
@@ -270,12 +264,11 @@ __device__ float samp_txz_x(
     sum += coeff[1] * __ldg(f + iz0 * (nx - 1) + max(0, min(ix0 - 1, nx - 2)));
     sum += coeff[2] * __ldg(f + iz0 * (nx - 1) + max(0, min(ix0, nx - 2)));
     sum += coeff[3] * __ldg(f + iz0 * (nx - 1) + max(0, min(ix0 + 1, nx - 2)));
-    sum += coeff[4] * __ldg(f + iz0 * (nx - 1) + max(0, min(ix0 + 2, nx - 2)));
-    sum += coeff[5] * __ldg(f + iz0 * (nx - 1) + max(0, min(ix0 + 3, nx - 2)));
 
     return sum;
 }
 
+// txz 沿 z 方向插值（x 固定）
 __device__ float samp_txz_z(
     float *f, float ix_global, float iz_global
 ) {
@@ -295,8 +288,6 @@ __device__ float samp_txz_z(
     sum += coeff[1] * __ldg(f + max(0, min(iz0 - 1, nz - 2)) * (nx - 1) + ix);
     sum += coeff[2] * __ldg(f + max(0, min(iz0, nz - 2))     * (nx - 1) + ix);
     sum += coeff[3] * __ldg(f + max(0, min(iz0 + 1, nz - 2)) * (nx - 1) + ix);
-    sum += coeff[4] * __ldg(f + max(0, min(iz0 + 2, nz - 2)) * (nx - 1) + ix);
-    sum += coeff[5] * __ldg(f + max(0, min(iz0 + 3, nz - 2)) * (nx - 1) + ix);
 
     return sum;
 }
@@ -588,7 +579,7 @@ __device__ float dvx_dx_8th(
     f += time * offset_vx_all;
     int lenx = fines[zone].lenx;
     int n_x = tex1Dfetch<int2>(
-        vx_n_tex, sum_offset_fine_vx[zone] - (nx - 1) * nz + iz * (lenx - 1) + ix
+        vx_n_tex, sum_offset_fine_sx[zone] - sum_offset_fine_sx[0] + iz * lenx + ix
     ).x;
 
     float ix_global, iz_global;
@@ -605,7 +596,7 @@ __device__ float dvx_dx_8th(
         // samp1
         ix_global = (
             + 1.0 * ix / fines[zone].N + fines[zone].x_start 
-            + 1.0 * n_x / fines[zone].N + (i - n_x - 0.5)
+            + 1.0 * n_x / fines[zone].N + (i - n_x - 0.5)//
         );
         iz_global = 1.0 * iz / fines[zone].N + fines[zone].z_start;
 
@@ -640,9 +631,9 @@ __device__ float dvx_dz_8th(
 ) {
     float sum = 0;
     f += time * offset_vx_all;
-    int lenx = (fines[zone].x_end - fines[zone].x_start) * fines[zone].N + 1;
+    int lenx = fines[zone].lenx;
     int n_z = tex1Dfetch<int2>(
-        vx_n_tex, sum_offset_fine_vx[zone] - (nx - 1) * nz + iz * (lenx - 1) + ix
+        vx_n_tex, sum_offset_fine_sx[zone] - sum_offset_fine_sx[0] + iz * lenx + ix
     ).y;
     float ix_global, iz_global;
     int iz_local;
@@ -690,7 +681,7 @@ __device__ float dvz_dx_8th(
     f += time * offset_vz_all;
     int lenx = (fines[zone].x_end - fines[zone].x_start) * fines[zone].N + 1;
     int n_x = tex1Dfetch<int2>(
-        vz_n_tex, sum_offset_fine_vz[zone] - nx * (nz - 1) + iz * lenx + ix
+        vz_n_tex, sum_offset_fine_sx[zone] - sum_offset_fine_sx[0] + iz * lenx + ix
     ).x;
     float ix_global, iz_global;
     int ix_local;
@@ -736,9 +727,9 @@ __device__ float dvz_dz_8th(
 ) {
     float sum = 0;
     f += time * offset_vz_all;
-    int lenx = (fines[zone].x_end - fines[zone].x_start) * fines[zone].N + 1;
+    int lenx = fines[zone].lenx;
     int n_z = tex1Dfetch<int2>(
-        vz_n_tex, sum_offset_fine_vz[zone] - nx * (nz - 1) + iz * lenx + ix
+        vz_n_tex, sum_offset_fine_sx[zone] - sum_offset_fine_sx[0] + iz * lenx + ix
     ).y;
     float ix_global, iz_global;
     int iz_local;
@@ -788,9 +779,9 @@ __device__ float dsx_dx_8th(
 ) {
     float sum = 0;
     f += time * offset_sx_all;
-    int lenx = (fines[zone].x_end - fines[zone].x_start) * fines[zone].N + 1;
+    int lenx = fines[zone].lenx;
     int n_x = tex1Dfetch<int2>(
-        sx_n_tex, sum_offset_fine_sx[zone] - nx * nz + iz * lenx + ix
+        sx_n_tex, sum_offset_fine_sx[zone] - sum_offset_fine_sx[0] + iz * lenx + ix
     ).x;
     float ix_global, iz_global;
     int ix_local;
@@ -836,9 +827,9 @@ __device__ float dsz_dz_8th(
 ) {
     float sum = 0;
     f += time * offset_sz_all;
-    int lenx = (fines[zone].x_end - fines[zone].x_start) * fines[zone].N + 1;
+    int lenx = fines[zone].lenx;
     int n_z = tex1Dfetch<int2>(
-        sz_n_tex, sum_offset_fine_sz[zone] - nx * nz + iz * lenx + ix
+        sz_n_tex, sum_offset_fine_sz[zone] - sum_offset_fine_sz[0] + iz * lenx + ix
     ).y;
     float ix_global, iz_global;
     int iz_local;
@@ -884,9 +875,9 @@ __device__ float dtxz_dx_8th(
 ) {
     float sum = 0;
     f += time * offset_txz_all;
-    int lenx = (fines[zone].x_end - fines[zone].x_start) * fines[zone].N + 1;
+    int lenx = fines[zone].lenx;
     int n_x = tex1Dfetch<int2>(
-        txz_n_tex, sum_offset_fine_txz[zone] - (nx - 1) * (nz - 1) + iz * (lenx - 1) + ix
+        txz_n_tex, sum_offset_fine_sx[zone] - sum_offset_fine_sx[0] + iz * lenx + ix
     ).x;
     float ix_global, iz_global;
     int ix_local;
@@ -936,9 +927,9 @@ __device__ float dtxz_dz_8th(
 ) {
     float sum = 0;
     f += time * offset_txz_all;
-    int lenx = (fines[zone].x_end - fines[zone].x_start) * fines[zone].N + 1;
+    int lenx = fines[zone].lenx;
     int n_z = tex1Dfetch<int2>(
-        txz_n_tex, sum_offset_fine_txz[zone] - (nx - 1) * (nz - 1) + iz * (lenx - 1) + ix
+        txz_n_tex, sum_offset_fine_sx[zone] - sum_offset_fine_sx[0] + iz * lenx + ix
     ).y;
     float ix_global, iz_global;
     int iz_local;
