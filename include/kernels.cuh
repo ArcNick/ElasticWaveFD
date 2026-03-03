@@ -25,5 +25,7 @@ __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int
 __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, int cur);
 __global__ void update_stress_fine(Core core, Model model, int cur, int zone);
 __global__ void update_velocity_fine(Core core, Model model, int cur, int zone);
+__global__ void sync_fine_to_coarse_str(Core core, int cur, int zone);
+__global__ void sync_fine_to_coarse_vel(Core core, int cur, int zone);
 
 #endif

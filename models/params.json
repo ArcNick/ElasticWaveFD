@@ -1,18 +1,18 @@
 {
   "base": {
-    "fpeak": 50.0,
-    "dt": 1e-06,
-    "nt": 320000,
-    "posx": 100,
-    "posz": 100,
-    "snapshot": 8000
+    "fpeak": 30.0,
+    "dt": 5e-06,
+    "nt": 64000,
+    "posx": 250,
+    "posz": 250,
+    "snapshot": 1000
   },
   "cpml": {
-    "thickness": 15,
+    "thickness": 40,
     "N": 3,
-    "cp_max": 3500.0,
+    "cp_max": 3000.0,
     "Rc": 0.001,
     "kappa0": 1.2,
-    "fpeak": 50.0
+    "fpeak": 30.0
   }
 }

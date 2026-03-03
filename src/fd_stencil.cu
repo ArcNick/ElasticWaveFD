@@ -111,7 +111,7 @@ __device__ float samp_C55(
 __device__ float samp_vx_z(
     float *f, float ix_global, float iz_global
 ) {
-    int ix = int(ix_global + 1e-5f);
+    int ix = int(ix_global );
     ix = max(0, min(ix, nx - 2));
 
     int iz0 = int(iz_global);
@@ -133,11 +133,11 @@ __device__ float samp_vx_z(
 __device__ float samp_vx_x(
     float *f, float ix_global, float iz_global
 ) {
-    int ix0 = int(ix_global - 0.5f + 1e-5f);
+    int ix0 = int(ix_global - 0.5f );
     ix0 = max(0, min(ix0, nx - 2));
     float tx = (ix_global - 0.5f) - ix0;
 
-    int iz = int(iz_global + 1e-5f);
+    int iz = int(iz_global );
     iz = max(0, min(iz, nz - 1));
 
     int tx_idx = int(tx * LUT_SIZE + 0.5f);
@@ -157,10 +157,10 @@ __device__ float samp_vx_x(
 __device__ float samp_vz_x(
     float *f, float ix_global, float iz_global
 ) {
-    int iz = int(iz_global - 0.5f + 1e-5f);
+    int iz = int(iz_global - 0.5f );
     iz = max(0, min(iz, nz - 2));
 
-    int ix0 = int(ix_global + 1e-5f);
+    int ix0 = int(ix_global );
     ix0 = max(0, min(ix0, nx - 1));
     float tx = ix_global - ix0;
 
@@ -181,10 +181,10 @@ __device__ float samp_vz_x(
 __device__ float samp_vz_z(
     float *f, float ix_global, float iz_global
 ) {
-    int ix = int(ix_global + 1e-5f);
+    int ix = int(ix_global );
     ix = max(0, min(ix, nx - 1));
 
-    int iz0 = int(iz_global - 0.5f + 1e-5f);
+    int iz0 = int(iz_global - 0.5f );
     iz0 = max(0, min(iz0, nz - 2));
     float tz = (iz_global - 0.5f) - iz0;
 
@@ -272,10 +272,10 @@ __device__ float samp_txz_x(
 __device__ float samp_txz_z(
     float *f, float ix_global, float iz_global
 ) {
-    int ix = int(ix_global - 0.5f + 1e-5f);
+    int ix = int(ix_global - 0.5f );
     ix = max(0, min(ix, nx - 2));
 
-    int iz0 = int(iz_global - 0.5f + 1e-5f);
+    int iz0 = int(iz_global - 0.5f );
     iz0 = max(0, min(iz0, nz - 2));
     float tz = (iz_global - 0.5f) - iz0;
 
@@ -559,10 +559,10 @@ __device__ float dtxz_dz_coarse(
             local_ix = (ix + 0.5 - fines[mask].x_start - 1.0 / (2 * fines[mask].N)) * fines[mask].N;
             local_iz = (iz - i + 0.5 - fines[mask].z_start - 1.0 / (2 * fines[mask].N)) * fines[mask].N;
             lenx = fines[mask].lenx;
-            if (sum_offset_fine_txz[mask] + local_iz * (lenx - 1) + local_ix >= offset_txz_all) {
-                printf("local_ix=%d, local_iz=%d, ix=%d, iz=%d, i=%d\n", local_ix, local_iz, ix, iz, i);
-                // printf("ix=%d, iz=%d, i=%d\n", ix, iz, i);
-            }
+            // if (sum_offset_fine_txz[mask] + local_iz * (lenx - 1) + local_ix >= offset_txz_all) {
+            //     printf("local_ix=%d, local_iz=%d, ix=%d, iz=%d, i=%d\n", local_ix, local_iz, ix, iz, i);
+            //     // printf("ix=%d, iz=%d, i=%d\n", ix, iz, i);
+            // }
             sum -= c_normal[i] * f[sum_offset_fine_txz[mask] + local_iz * (lenx - 1) + local_ix];
         } else {
             sum -= c_normal[i] * f[(iz - i) * (nx - 1) + ix];
@@ -600,7 +600,7 @@ __device__ float dvx_dx_8th(
         );
         iz_global = 1.0 * iz / fines[zone].N + fines[zone].z_start;
 
-        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             ix_local = (
                 ix_global - fines[zone].x_start - 1.0 / (2 * fines[zone].N)
             ) * fines[zone].N;
@@ -614,7 +614,7 @@ __device__ float dvx_dx_8th(
             + 1.0 * ix / fines[zone].N + fines[zone].x_start
             - 1.0 * n_x / fines[zone].N - (i - n_x - 0.5)
         );
-        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             ix_local = (
                 ix_global - fines[zone].x_start - 1.0 / (2 * fines[zone].N)
             ) * fines[zone].N;
@@ -652,7 +652,7 @@ __device__ float dvx_dz_8th(
             + (iz + 0.5) / fines[zone].N + fines[zone].z_start
             + (n_z - 0.5) / fines[zone].N + (i - n_z)
         );
-        if (fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             iz_local = (iz_global - fines[zone].z_start) * fines[zone].N;
             sum += d[fines[zone].N][n_z][i] * f[sum_offset_fine_vx[zone] + iz_local * (lenx - 1) + ix];
         } else {
@@ -664,7 +664,7 @@ __device__ float dvx_dz_8th(
             + (iz + 0.5) / fines[zone].N + fines[zone].z_start
             - (n_z - 0.5) / fines[zone].N - (i - n_z)
         );
-        if (fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             iz_local = (iz_global - fines[zone].z_start) * fines[zone].N;
             sum -= d[fines[zone].N][n_z][i] * f[sum_offset_fine_vx[zone] + iz_local * (lenx - 1) + ix];
         } else {
@@ -679,7 +679,7 @@ __device__ float dvz_dx_8th(
 ) {
     float sum = 0;
     f += time * offset_vz_all;
-    int lenx = (fines[zone].x_end - fines[zone].x_start) * fines[zone].N + 1;
+    int lenx = fines[zone].lenx;
     int n_x = tex1Dfetch<int2>(
         vz_n_tex, sum_offset_fine_sx[zone] - sum_offset_fine_sx[0] + iz * lenx + ix
     ).x;
@@ -700,7 +700,7 @@ __device__ float dvz_dx_8th(
             + (n_x - 0.5) / fines[zone].N + (i - n_x)
         );
         iz_global = (iz + 0.5) / fines[zone].N + fines[zone].z_start;
-        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             ix_local = (ix_global - fines[zone].x_start) * fines[zone].N;
             sum += d[fines[zone].N][n_x][i] * f[sum_offset_fine_vz[zone] + iz * lenx + ix_local];
         } else {
@@ -712,7 +712,7 @@ __device__ float dvz_dx_8th(
             + (ix + 0.5) / fines[zone].N + fines[zone].x_start
             - (n_x - 0.5) / fines[zone].N - (i - n_x)
         );
-        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             ix_local = (ix_global - fines[zone].x_start) * fines[zone].N;
             sum -= d[fines[zone].N][n_x][i] * f[sum_offset_fine_vz[zone] + iz * lenx + ix_local];
         } else {
@@ -748,7 +748,7 @@ __device__ float dvz_dz_8th(
             + 1.0 * iz / fines[zone].N + fines[zone].z_start
             + 1.0 * n_z / fines[zone].N + (i - n_z - 0.5)
         );
-        if (fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             iz_local = (
                 iz_global - fines[zone].z_start - 1.0 / (2 * fines[zone].N)
             ) * fines[zone].N;
@@ -762,7 +762,7 @@ __device__ float dvz_dz_8th(
             + 1.0 * iz / fines[zone].N + fines[zone].z_start
             - 1.0 * n_z / fines[zone].N - (i - n_z - 0.5)
         );
-        if (fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             iz_local = (
                 iz_global - fines[zone].z_start - 1.0 / (2 * fines[zone].N)
             ) * fines[zone].N;
@@ -800,7 +800,7 @@ __device__ float dsx_dx_8th(
             + (n_x - 0.5) / fines[zone].N + (i - n_x)
         );
         iz_global = 1.0 * iz / fines[zone].N + fines[zone].z_start;
-        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             ix_local = (ix_global - fines[zone].x_start) * fines[zone].N;
             sum += d[fines[zone].N][n_x][i] * f[sum_offset_fine_sx[zone] + iz * lenx + ix_local];
         } else {
@@ -812,7 +812,7 @@ __device__ float dsx_dx_8th(
             + (ix + 0.5) / fines[zone].N + fines[zone].x_start
             - (n_x - 0.5) / fines[zone].N - (i - n_x)
         );
-        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             ix_local = (ix_global - fines[zone].x_start) * fines[zone].N;
             sum -= d[fines[zone].N][n_x][i] * f[sum_offset_fine_sx[zone] + iz * lenx + ix_local];
         } else {
@@ -848,7 +848,7 @@ __device__ float dsz_dz_8th(
             + (iz + 0.5) / fines[zone].N + fines[zone].z_start
             + (n_z - 0.5) / fines[zone].N + (i - n_z)
         );
-        if (fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             iz_local = (iz_global - fines[zone].z_start) * fines[zone].N;
             sum += d[fines[zone].N][n_z][i] * f[sum_offset_fine_sz[zone] + iz_local * lenx + ix];
         } else {
@@ -860,7 +860,7 @@ __device__ float dsz_dz_8th(
             + (iz + 0.5) / fines[zone].N + fines[zone].z_start
             - (n_z - 0.5) / fines[zone].N - (i - n_z)
         );
-        if (fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             iz_local = (iz_global - fines[zone].z_start) * fines[zone].N;
             sum -= d[fines[zone].N][n_z][i] * f[sum_offset_fine_sz[zone] + iz_local * lenx + ix];
         } else {
@@ -896,7 +896,7 @@ __device__ float dtxz_dx_8th(
             + 1.0 * n_x / fines[zone].N + (i - n_x - 0.5)
         );
         iz_global = (iz + 0.5) / fines[zone].N + fines[zone].z_start;
-        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             ix_local = (
                 ix_global - fines[zone].x_start - 1.0 / (2 * fines[zone].N)
             ) * fines[zone].N;
@@ -910,7 +910,7 @@ __device__ float dtxz_dx_8th(
             + 1.0 * ix / fines[zone].N + fines[zone].x_start
             - 1.0 * (n_x) / fines[zone].N - (i - n_x - 0.5)
         );
-        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             ix_local = (
                 ix_global - fines[zone].x_start - 1.0 / (2 * fines[zone].N)
             ) * fines[zone].N;
@@ -948,7 +948,7 @@ __device__ float dtxz_dz_8th(
             + 1.0 * iz / fines[zone].N + fines[zone].z_start
             + n_z / fines[zone].N + (i - n_z - 0.5)
         );
-        if (fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             iz_local = (
                 iz_global - fines[zone].z_start - 1.0 / (2 * fines[zone].N)
             ) * fines[zone].N;
@@ -962,7 +962,7 @@ __device__ float dtxz_dz_8th(
             1.0 * iz / fines[zone].N + fines[zone].z_start
             - n_z / fines[zone].N - (i - n_z - 0.5)
         );
-        if (fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
+        if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             iz_local = (
                 iz_global - fines[zone].z_start - 1.0 / (2 * fines[zone].N)
             ) * fines[zone].N;

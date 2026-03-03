@@ -4,6 +4,7 @@ import json
 import concurrent.futures
 import multiprocessing
 import shutil
+import copy
 from scipy.ndimage import zoom
 
 # 必须在导入 pyplot 前设置后端
@@ -19,15 +20,15 @@ CROP_PML_HALO = False  # True: 裁剪 PML 和 halo; False: 不裁剪，显示完
 
 # ==================== 细网格显示控制 ====================
 SHOW_FINE_GRIDS = True               # 是否显示细网格（整体开关）
-FINE_GRID_INDICES = []              # 指定要显示的细网格索引列表
+FINE_GRID_INDICES = [0]              # 指定要显示的细网格索引列表
                                        # None    : 显示所有细网格
                                        # []      : 不显示任何细网格
                                        # [0,2]   : 只显示索引 0 和 2 的细网格
 
 # ==================== 颜色范围常量 ====================
-VX_VZ_RANGE = (-1e-7, 1e-7)          # 速度分量
-SX_SZ_RANGE = (-5e-1, 5e-1)          # 正应力
-TXZ_RANGE   = (-2e-1, 2e-1)          # 切应力
+VX_VZ_RANGE = (-5e-7, 5e-7)          # 速度分量
+SX_SZ_RANGE = (-4e-2, 4e-2)          # 正应力
+TXZ_RANGE   = (-8e-2, 8e-2)          # 切应力
 
 FIELD_NAMES = ['vx', 'vz', 'sx', 'sz', 'txz']
 FIELD_CMAP  = {f:'seismic' for f in FIELD_NAMES}
@@ -266,31 +267,154 @@ def plot_snapshot(fieldname, filebase, arr, cgrid):
     plt.close(fig)
     return savepath
 
-# ---------- 地震记录绘图（wigb）----------
-def wigb(data, scale=1.0, skip=1, xstep=1, gain=1.0, lwidth=0.3, color='k'):
-    nt, nx = data.shape
-    t = np.arange(nt)
-    x = np.arange(nx) * xstep
-    fig, ax = plt.subplots(figsize=(12, 8))
-    for i in range(0, nx, skip):
-        trace = data[:, i] * gain * scale
-        ax.plot(x[i] + trace, t, color, linewidth=lwidth)
-    ax.invert_yaxis()
-    ax.set_xlabel("x (m)")
-    ax.set_ylabel("time (s)")
-    ax.set_title("Seismogram (wigb)")
-    fig.tight_layout()
-    return fig, ax
+# ---------- 新的地震记录绘图函数 (wigb) ----------
+def wigb(a=None, scale=1, x=None, z=None, a_max=None, ax=None, figsize=(30, 15), aspect='auto', no_plot=False, direction='Vertical'):
+    """
+    wigb - plot seismic trace data
+    Thanks to XINGONG LI's contribution on MATLAB (https://geog.ku.edu/xingong-li)
 
-def plot_record_wigb(record_bin, out_png, nx, dt, dx, skip=4, gain=1.0, lwidth=0.3):
+    :param a: Seismic data (trace data * traces)
+    :param scale: Scale factor (Default 1)
+    :param x: x-axis info (traces) (Default None)
+    :param z: z-axis info (trace data) (Default None)
+    :param a_max: Magnitude of input data (Default None)
+    :param aspect: Display aspect (Default 'auto'). Can be 'auto', 'equal', or a positive real number
+    :param ax: The axes handler (Default None). The default value indicate the axes is generated within this function
+    :param figsize: Size of figure (Default (30, 15)). This parameter works only if ax is None.
+    :param no_plot: Do not plot immediately (Default False)
+    :param direction: Display direction (Default 'Vertical'). Either 'Vertical' or 'Horizontal'.
+
+    :return: if no_plot is False, plot the seismic data, otherwise, do not plot immediately,
+            users can adjust plot parameters outside. Always returns (fig, ax).
+    """
+    a = copy.copy(a)
+    n_data, n_trace = a.shape
+
+    if x is None:
+        x = np.arange(n_trace)
+    if z is None:
+        z = np.arange(n_data)
+    if a_max is None:
+        a_max = np.max(np.max(a, axis=0))
+    if direction not in ['Horizontal', 'Vertical']:
+        raise ValueError('Direction must be either \'Horizontal\' or \'Vertical\'')
+
+    x = np.array(x)
+    z = np.array(z)
+
+    dx = np.mean(x[1:] - x[:n_trace - 1])
+    dz = np.mean(z[1:] - z[:n_data - 1])
+
+    a *= scale * dx / a_max
+
+    if ax is None:
+        fig, ax = plt.subplots(figsize=figsize)
+    else:
+        fig = ax.figure
+
+    ax.set_aspect(aspect=aspect)
+
+    if direction == 'Vertical':
+        ax.set_xlim(-2 * dx, x[-1] + 2 * dx)
+        ax.set_ylim(-dz, z[-1] + dz)
+        ax.invert_yaxis()
+
+        for index_x in range(n_trace):
+            zero_offset = index_x*dx
+            trace = a[:, index_x]
+            ax.plot(zero_offset + trace, z, 'k-', linewidth=2)
+            ax.fill_betweenx(
+                np.array([y * dz for y in range(n_data)]),
+                np.zeros_like(np.arange(n_data)) + zero_offset,
+                trace + zero_offset,
+                where=trace > 0,
+                interpolate=True,
+                color='k',
+                antialiased=True
+            )
+
+    elif direction == 'Horizontal':
+        ax.set_xlim(-dz, z[-1] + dz)
+        ax.set_ylim(-2 * dx, x[-1] + 2 * dx)
+        ax.invert_yaxis()
+
+        for index_z in range(n_trace):
+            zero_offset = index_z*dx
+            trace = a[:, index_z]
+            ax.plot(z, zero_offset + trace, 'k-', linewidth=2)
+
+            ax.fill_between(
+                np.array([y * dz for y in range(n_data)]),
+                np.zeros_like(np.arange(n_data)) + zero_offset,
+                trace + zero_offset,
+                where=trace > 0,
+                interpolate=True,
+                color='k',
+                antialiased=True
+            )
+
+    if not no_plot:
+        plt.show()
+
+    return fig, ax   # 返回 figure 和 axes 以便外部保存
+
+def plot_record_wigb(record_bin, out_png, nx, dt, dx, skip=4, gain=1.0, lwidth=0.3, output_dt=0.001):
+    """
+    读取二进制地震记录，按指定输出采样间隔降采样后，用 wigb 绘图并保存。
+    record_bin: 二进制文件路径
+    out_png   : 输出 PNG 文件路径
+    nx        : 总道数
+    dt        : 原始时间采样间隔 (s) —— 来自模拟参数
+    dx        : 道间距 (m)
+    skip      : 每隔 skip 道画一道
+    gain      : 增益因子
+    lwidth    : 线宽
+    output_dt : 输出图像的时间采样间隔 (s)，默认为 0.001
+    """
+    # 读取数据
     rec = np.fromfile(record_bin, dtype=np.float32)
     nt = rec.size // nx
     if rec.size % nx != 0:
-        return None
+        print_progress(f"警告: {record_bin} 数据大小不是 nx 的整数倍，丢弃多余数据")
+        rec = rec[:nt*nx]
     rec_mat = rec.reshape((nt, nx))
-    fig, ax = wigb(rec_mat, scale=1.0, skip=skip, xstep=dx, gain=gain, lwidth=lwidth, color='k')
-    fig.savefig(out_png, dpi=300)
+
+    # 计算时间降采样因子
+    if output_dt <= 0:
+        raise ValueError("output_dt 必须为正数")
+    step_t = int(round(output_dt / dt))
+    if abs(step_t * dt - output_dt) > 1e-12:
+        print_progress(f"警告: output_dt={output_dt}s 不是原始 dt={dt}s 的整数倍，将使用 step_t={step_t}，实际输出间隔={step_t*dt:.6f}s")
+    # 降采样时间轴
+    rec_mat = rec_mat[::step_t, :]          # 只保留每 step_t 个时间点
+    nt_new = rec_mat.shape[0]
+
+    # 根据 skip 对道进行子采样
+    rec_mat = rec_mat[:, ::skip]
+    n_trace_plot = rec_mat.shape[1]
+
+    # 生成物理坐标
+    x_coords = np.arange(n_trace_plot) * dx * skip          # 道的中心位置
+    z_coords = np.arange(nt_new) * output_dt                # 时间轴（秒）
+
+    # 调用 wigb 函数
+    fig, ax = wigb(
+        a=rec_mat,
+        scale=gain,
+        x=x_coords,
+        z=z_coords,
+        ax=None,
+        figsize=(30, 15),
+        aspect='auto',
+        no_plot=True,
+        direction='Vertical'
+    )
+
+    # 保存图像
+    os.makedirs(os.path.dirname(out_png), exist_ok=True)
+    fig.savefig(out_png, dpi=300, bbox_inches='tight')
     plt.close(fig)
+    print_progress(f"地震记录已保存: {out_png}")
     return out_png
 
 # ---------- 处理单个波场文件 ----------
@@ -323,38 +447,53 @@ def main():
         fine_mode_str += " (不显示细网格)"
     print_progress(f"当前细网格设置: {fine_mode_str}")
 
-    # 收集所有波场任务
-    tasks = []
+    # ========== 1. 串行处理地震记录 ==========
+    record_tasks = []
+    if os.path.exists(RECORD_DIR):
+        for fname in sorted(os.listdir(RECORD_DIR)):
+            if fname.endswith('.bin'):
+                record_tasks.append(fname)
+    
+    if record_tasks:
+        print_progress(f"\n开始串行处理地震记录，共 {len(record_tasks)} 个文件...")
+        for idx, fname in enumerate(record_tasks, start=1):
+            print_progress(f"处理记录 [{idx}/{len(record_tasks)}]: {fname}")
+            plot_record_wigb(
+                os.path.join(RECORD_DIR, fname),
+                os.path.join(IMAGE_BASE, 'record', fname.replace('.bin', '.png')),
+                modelinfo["coarse"]["nx"],      # 总道数
+                paramsinfo["base"]["dt"],       # 原始时间步长 (s)
+                modelinfo["coarse"]["dx"],      # 道间距 (m)
+                skip=5,                          # 每隔5道画一道
+                gain=1.0,
+                lwidth=0.3,
+                output_dt=0.001                  # 输出图像的时间采样间隔
+            )
+        print_progress("地震记录处理完成。\n")
+    else:
+        print_progress("未找到地震记录文件，跳过。")
+
+    # ========== 2. 并行处理波场快照 ==========
+    snapshot_tasks = []
     for fieldname in FIELD_NAMES:
         field_dir = os.path.join(OUTPUT_BASE, fieldname)
         if not os.path.isdir(field_dir):
             continue
         for fname in sorted(os.listdir(field_dir)):
             if fname.endswith('.bin'):
-                tasks.append((fieldname, fname))
+                snapshot_tasks.append((fieldname, fname))
 
-    # 可选：添加地震记录任务
-    # if os.path.exists(RECORD_DIR):
-    #     for fname in sorted(os.listdir(RECORD_DIR)):
-    #         if fname.endswith('.bin'):
-    #             tasks.append(('record', fname))
+    total = len(snapshot_tasks)
+    if total == 0:
+        print_progress("未找到波场快照文件，程序结束。")
+        return
 
-    total = len(tasks)
-    print_progress(f"共发现 {total} 个文件需要处理")
+    print_progress(f"开始并行处理波场快照，共 {total} 个文件，使用 {get_cpu_count()} 线程...")
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=get_cpu_count()) as exe:
         futures = {}
-        for idx, (fieldname, fname) in enumerate(tasks, start=1):
-            if fieldname == 'record':
-                future = exe.submit(plot_record_wigb,
-                                     os.path.join(RECORD_DIR, fname),
-                                     os.path.join(IMAGE_BASE, 'record', fname.replace('.bin', '.png')),
-                                     modelinfo["coarse"]["nx"],
-                                     paramsinfo["base"]["dt"],
-                                     modelinfo["coarse"]["dx"],
-                                     skip=5, gain=1.0, lwidth=0.3)
-            else:
-                future = exe.submit(process_snapshot, fieldname, fname, modelinfo, pml_thick, idx, total)
+        for idx, (fieldname, fname) in enumerate(snapshot_tasks, start=1):
+            future = exe.submit(process_snapshot, fieldname, fname, modelinfo, pml_thick, idx, total)
             futures[future] = (fieldname, fname)
 
         for future in concurrent.futures.as_completed(futures):
@@ -364,7 +503,7 @@ def main():
                 fieldname, fname = futures[future]
                 print_progress(f"处理 {fieldname}/{fname} 时出错: {e}")
 
-    print_progress("所有任务处理完成")
+    print_progress("所有波场快照处理完成。")
 
 if __name__ == "__main__":
     main()

@@ -1,7 +1,7 @@
 {
   "coarse": {
-    "nx": 200,
-    "nz": 200,
+    "nx": 501,
+    "nz": 501,
     "dx": 1.0,
     "dz": 1.0,
     "rho": "models/coarse/rho.bin",
@@ -12,11 +12,11 @@
   },
   "fine": [
     {
-      "x_start": 52,
-      "x_end": 62,
+      "x_start": 100,
+      "x_end": 150,
       "z_start": 150,
-      "z_end": 160,
-      "N": 3,
+      "z_end": 200,
+      "N": 21,
       "rho": "models/fine/0/rho.bin",
       "C11": "models/fine/0/C11.bin",
       "C13": "models/fine/0/C13.bin",
