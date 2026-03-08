@@ -10,11 +10,8 @@ __device__ int IdxVxCo(int ix, int iz, int time) {
 __device__ int IdxVzCo(int ix, int iz, int time) {
     return iz * nx + ix + time * offset_vz_all;
 }
-__device__ int IdxSxCo(int ix, int iz, int time) {
-    return iz * nx + ix + time * offset_sx_all;
-}
-__device__ int IdxSzCo(int ix, int iz, int time) {
-    return iz * nx + ix + time * offset_sz_all;
+__device__ int IdxSigCo(int ix, int iz, int time) {
+    return iz * nx + ix + time * offset_sig_all;
 }
 __device__ int IdxTxzCo(int ix, int iz, int time) {
     return iz * (nx - 1) + ix + time * offset_txz_all;
@@ -25,11 +22,8 @@ __device__ int IdxVxFi(int ix, int iz, int time, int zone) {
 __device__ int IdxVzFi(int ix, int iz, int time, int zone) {
     return iz * fines[zone].lenx + ix + time * offset_vz_all + sum_offset_fine_vz[zone];
 }
-__device__ int IdxSxFi(int ix, int iz, int time, int zone) {
-    return iz * fines[zone].lenx + ix + time * offset_sx_all + sum_offset_fine_sx[zone];
-}
-__device__ int IdxSzFi(int ix, int iz, int time, int zone) {
-    return iz * fines[zone].lenx + ix + time * offset_sz_all + sum_offset_fine_sz[zone];
+__device__ int IdxSigFi(int ix, int iz, int time, int zone) {
+    return iz * fines[zone].lenx + ix + time * offset_sig_all + sum_offset_fine_sig[zone];
 }
 __device__ int IdxTxzFi(int ix, int iz, int time, int zone) {
     return iz * (fines[zone].lenx - 1) + ix + time * offset_txz_all + sum_offset_fine_txz[zone];
@@ -76,8 +70,8 @@ __device__ int get_cpml_idx_z_half(int iz) {
 }
 
 __global__ void apply_source(Core core, float src, int cur) {
-    core.sx[posz_d * nx + posx_d + cur * offset_sx_all] += src;
-    core.sz[posz_d * nx + posx_d + cur * offset_sz_all] += src;
+    core.sx[posz_d * nx + posx_d + cur * offset_sig_all] += src;
+    core.sz[posz_d * nx + posx_d + cur * offset_sig_all] += src;
 }
 
 __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int cur) {
@@ -88,7 +82,7 @@ __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int
         return;
     }
 
-    if (tex1Dfetch<int>(sx_mask, iz * nx + ix) == -1) {
+    if (tex1Dfetch<int>(sig_mask, iz * nx + ix) == -1) {
         float dvx_dx = 0;
         float dvz_dz = 0;
         if (ix > 3) {
@@ -119,18 +113,18 @@ __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int
             dvz_dz = dvz_dz / kappa_half_d[pml_idx] + psi_vel.psi_vz_z[iz * nx + ix];
         }
 
-        core.sx[IdxSxCo(ix, iz, cur)] = (
-            + core.sx[IdxSxCo(ix, iz, cur ^ 1)]
+        core.sx[IdxSigCo(ix, iz, cur)] = (
+            + core.sx[IdxSigCo(ix, iz, cur ^ 1)]
             + dt_d * (
-                + model.C11[IdxSxCo(ix, iz, 0)] * dvx_dx 
-                + model.C13[IdxSxCo(ix, iz, 0)] * dvz_dz
+                + model.C11[IdxSigCo(ix, iz, 0)] * dvx_dx 
+                + model.C13[IdxSigCo(ix, iz, 0)] * dvz_dz
             )
         );
-        core.sz[IdxSzCo(ix, iz, cur)] = (
-            + core.sz[IdxSzCo(ix, iz, cur ^ 1)]
+        core.sz[IdxSigCo(ix, iz, cur)] = (
+            + core.sz[IdxSigCo(ix, iz, cur ^ 1)]
             + dt_d * (
-                + model.C13[IdxSzCo(ix, iz, 0)] * dvx_dx
-                + model.C33[IdxSzCo(ix, iz, 0)] * dvz_dz
+                + model.C13[IdxSigCo(ix, iz, 0)] * dvx_dx
+                + model.C33[IdxSigCo(ix, iz, 0)] * dvz_dz
             )
         );
     }
@@ -258,16 +252,16 @@ __global__ void update_stress_fine(Core core, Model model, int cur, int zone) {
     float dvz_dx = 0;
     float dvz_dz = dvz_dz_8th(core.vz, ix, iz, cur ^ 1, zone);
 
-    core.sx[IdxSxFi(ix, iz, cur, zone)] = core.sx[IdxSxFi(ix, iz, cur ^ 1, zone)] + (
+    core.sx[IdxSigFi(ix, iz, cur, zone)] = core.sx[IdxSigFi(ix, iz, cur ^ 1, zone)] + (
         dt_d * (
-            + model.C11[IdxSxFi(ix, iz, 0, zone)] * dvx_dx
-            + model.C13[IdxSxFi(ix, iz, 0, zone)] * dvz_dz
+            + model.C11[IdxSigFi(ix, iz, 0, zone)] * dvx_dx
+            + model.C13[IdxSigFi(ix, iz, 0, zone)] * dvz_dz
         )
     );
-    core.sz[IdxSzFi(ix, iz, cur, zone)] = core.sz[IdxSzFi(ix, iz, cur ^ 1, zone)] + (
+    core.sz[IdxSigFi(ix, iz, cur, zone)] = core.sz[IdxSigFi(ix, iz, cur ^ 1, zone)] + (
         dt_d * (
-            + model.C13[IdxSzFi(ix, iz, 0, zone)] * dvx_dx
-            + model.C33[IdxSzFi(ix, iz, 0, zone)] * dvz_dz
+            + model.C13[IdxSigFi(ix, iz, 0, zone)] * dvx_dx
+            + model.C33[IdxSigFi(ix, iz, 0, zone)] * dvz_dz
         )
     );
 
@@ -276,10 +270,10 @@ __global__ void update_stress_fine(Core core, Model model, int cur, int zone) {
         dvz_dx = dvz_dx_8th(core.vz, ix, iz, cur ^ 1, zone);
         core.txz[IdxTxzFi(ix, iz, cur, zone)] = core.txz[IdxTxzFi(ix, iz, cur ^ 1, zone)] + (
             dt_d * 0.25 * (
-                + model.C55[IdxSxFi(ix, iz, 0, zone)]
-                + model.C55[IdxSxFi(ix + 1, iz, 0, zone)]
-                + model.C55[IdxSxFi(ix, iz + 1, 0, zone)]
-                + model.C55[IdxSxFi(ix + 1, iz + 1, 0, zone)]
+                + model.C55[IdxSigFi(ix, iz, 0, zone)]
+                + model.C55[IdxSigFi(ix + 1, iz, 0, zone)]
+                + model.C55[IdxSigFi(ix, iz + 1, 0, zone)]
+                + model.C55[IdxSigFi(ix + 1, iz + 1, 0, zone)]
             ) * (dvz_dx + dvx_dz)
         );
     }
@@ -303,8 +297,8 @@ __global__ void update_velocity_fine(Core core, Model model, int cur, int zone) 
         dsx_dx = dsx_dx_8th(core.sx, ix, iz, cur, zone);
         core.vx[IdxVxFi(ix, iz, cur, zone)] = core.vx[IdxVxFi(ix, iz, cur ^ 1, zone)] + (
             dt_d * 2 / (
-                + model.rho[IdxSxFi(ix, iz, 0, zone)]
-                + model.rho[IdxSxFi(ix + 1, iz, 0, zone)]
+                + model.rho[IdxSigFi(ix, iz, 0, zone)]
+                + model.rho[IdxSigFi(ix + 1, iz, 0, zone)]
             ) * (dsx_dx + dtxz_dz)
         );
     }
@@ -313,8 +307,8 @@ __global__ void update_velocity_fine(Core core, Model model, int cur, int zone) 
         dsz_dz = dsz_dz_8th(core.sz, ix, iz, cur, zone);
         core.vz[IdxVzFi(ix, iz, cur, zone)] = core.vz[IdxVzFi(ix, iz, cur ^ 1, zone)] + (
             dt_d * 2 / (
-                + model.rho[IdxSxFi(ix, iz, 0, zone)]
-                + model.rho[IdxSxFi(ix, iz + 1, 0, zone)]
+                + model.rho[IdxSigFi(ix, iz, 0, zone)]
+                + model.rho[IdxSigFi(ix, iz + 1, 0, zone)]
             ) * (dtxz_dx + dsz_dz)
         );
     }
@@ -332,17 +326,17 @@ __global__ void update_velocity_fine(Core core, Model model, int cur, int zone) 
 //     }
 
 //     if (N == 1) {
-//         if (tex1Dfetch<int>(sx_mask, iz_in * nx + ix_in) == -1) {
-//             core.sx[IdxSxCo(ix_in, iz_in, cur)] = core.sx[IdxSxFi(ix, iz, cur, zone)];
-//             core.sz[IdxSzCo(ix_in, iz_in, cur)] = core.sz[IdxSzFi(ix, iz, cur, zone)];
+//         if (tex1Dfetch<int>(sig_mask, iz_in * nx + ix_in) == -1) {
+//             core.sx[IdxSigCo(ix_in, iz_in, cur)] = core.sx[IdxSigFi(ix, iz, cur, zone)];
+//             core.sz[IdxSigCo(ix_in, iz_in, cur)] = core.sz[IdxSigFi(ix, iz, cur, zone)];
 //         }
 //         if (ix_in < fines[zone].x_end && iz_in < fines[zone].z_end && tex1Dfetch<int>(txz_mask, iz_in * (nx - 1) + ix_in) == -1) {
 //             core.txz[IdxTxzCo(ix_in, iz_in, cur)] = core.txz[IdxTxzFi(ix, iz, cur, zone)];
 //         }
 //     } else {
-//         if (tex1Dfetch<int>(sx_mask, iz_in * nx + ix_in) == -1) {
-//             core.sx[IdxSxCo(ix_in, iz_in, cur)] = core.sx[IdxSxFi(ix * N, iz * N, cur, zone)];
-//             core.sz[IdxSzCo(ix_in, iz_in, cur)] = core.sz[IdxSzFi(ix * N, iz * N, cur, zone)];
+//         if (tex1Dfetch<int>(sig_mask, iz_in * nx + ix_in) == -1) {
+//             core.sx[IdxSigCo(ix_in, iz_in, cur)] = core.sx[IdxSigFi(ix * N, iz * N, cur, zone)];
+//             core.sz[IdxSigCo(ix_in, iz_in, cur)] = core.sz[IdxSigFi(ix * N, iz * N, cur, zone)];
 //         }
 //         if (ix_in < fines[zone].x_end && iz_in < fines[zone].z_end && tex1Dfetch<int>(txz_mask, iz_in * (nx - 1) + ix_in) == -1) {
 //             core.txz[IdxTxzCo(ix_in, iz_in, cur)] = core.txz[IdxTxzFi(ix * N + 1, iz * N + 1, cur, zone)];

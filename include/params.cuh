@@ -23,6 +23,7 @@ private:
     void build_constant();
 };
 
+extern __constant__ float freq;
 extern __constant__ float dt_d;
 extern __constant__ int nt_d;
 extern __constant__ int posx_d;

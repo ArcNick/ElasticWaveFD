@@ -7,28 +7,21 @@ import shutil
 import copy
 from scipy.ndimage import zoom
 
-# 必须在导入 pyplot 前设置后端
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
-# 可选：提高 figure 打开数量警告阈值
 plt.rcParams['figure.max_open_warning'] = 50
 
 # ==================== 控制开关 ====================
-CROP_PML_HALO = False  # True: 裁剪 PML 和 halo; False: 不裁剪，显示完整区域
-
-# ==================== 细网格显示控制 ====================
-SHOW_FINE_GRIDS = True               # 是否显示细网格（整体开关）
-FINE_GRID_INDICES = [0]              # 指定要显示的细网格索引列表
-                                       # None    : 显示所有细网格
-                                       # []      : 不显示任何细网格
-                                       # [0,2]   : 只显示索引 0 和 2 的细网格
+CROP_PML_HALO = True
+SHOW_FINE_GRIDS = True
+FINE_GRID_INDICES = [0]
 
 # ==================== 颜色范围常量 ====================
-VX_VZ_RANGE = (-5e-7, 5e-7)          # 速度分量
-SX_SZ_RANGE = (-4e-2, 4e-2)          # 正应力
-TXZ_RANGE   = (-8e-2, 8e-2)          # 切应力
+VX_VZ_RANGE = (-2e-8, 2e-8)
+SX_SZ_RANGE = (-4e-2, 4e-2)
+TXZ_RANGE   = (-2e-2, 2e-2)
 
 FIELD_NAMES = ['vx', 'vz', 'sx', 'sz', 'txz']
 FIELD_CMAP  = {f:'seismic' for f in FIELD_NAMES}
@@ -40,16 +33,14 @@ FIELD_RANGE = {
     'txz': TXZ_RANGE
 }
 
-# ==================== 固定路径 ====================
 OUTPUT_BASE = './output'
 IMAGE_BASE  = './images'
 MODEL_JSON = './models/models.json'
 PARAMS_JSON = './models/params.json'
 RECORD_DIR = os.path.join(OUTPUT_BASE, 'record')
 
-# ==================== 辅助函数 ====================
+# ---------- 辅助函数 ----------
 def ensure_dirs():
-    # 清空 IMAGE_BASE 目录（如果存在）
     if os.path.exists(IMAGE_BASE):
         for item in os.listdir(IMAGE_BASE):
             item_path = os.path.join(IMAGE_BASE, item)
@@ -59,8 +50,6 @@ def ensure_dirs():
                 shutil.rmtree(item_path)
     else:
         os.makedirs(IMAGE_BASE)
-
-    # 创建各场量子目录
     for field in FIELD_NAMES:
         os.makedirs(os.path.join(IMAGE_BASE, field), exist_ok=True)
     os.makedirs(os.path.join(IMAGE_BASE, "record"), exist_ok=True)
@@ -75,8 +64,7 @@ def get_cpu_count():
 def print_progress(msg):
     print(msg, flush=True)
 
-# ---------- 根据场量类型计算粗网格总点数和物理区域切片 ----------
-# halo 定义（八阶差分）
+# ---------- 波场处理函数 ----------
 HALO = {
     'full':   {'left': 3, 'right': 4, 'top': 3, 'bottom': 4},
     'half_x': {'left': 4, 'right': 3, 'top': 3, 'bottom': 4},
@@ -85,15 +73,8 @@ HALO = {
 }
 
 def get_coarse_dims_by_type(nx_full, nz_full, pml, field_type):
-    """
-    根据整网格总点数（nx_full, nz_full）、PML厚度和场量类型，
-    计算该场量的粗网格总点数、物理区域切片及物理区域大小。
-    返回 (nx_coarse, nz_coarse, phys_slice, phys_nx, phys_nz)
-    """
-    # 整网格物理区域大小（不含PML和halo）
     nx_phys = nx_full - 2*pml - 7
     nz_phys = nz_full - 2*pml - 7
-
     if field_type == 'full':
         phys_nx = nx_phys
         phys_nz = nz_phys
@@ -116,9 +97,7 @@ def get_coarse_dims_by_type(nx_full, nz_full, pml, field_type):
         nz_coarse = phys_nz + 2*(pml-1) + 7
     else:
         raise ValueError(f"Unknown field type: {field_type}")
-
     if CROP_PML_HALO:
-        # 物理区域切片（裁剪 PML 和 halo）
         halo_cfg = HALO[field_type]
         left = pml + halo_cfg['left']
         right = nx_coarse - (pml + halo_cfg['right'])
@@ -126,14 +105,11 @@ def get_coarse_dims_by_type(nx_full, nz_full, pml, field_type):
         bottom = nz_coarse - (pml + halo_cfg['bottom'])
         phys_slice = (slice(top, bottom), slice(left, right))
     else:
-        # 不裁剪，使用完整区域
         phys_slice = (slice(0, nz_coarse), slice(0, nx_coarse))
         phys_nx = nx_coarse
         phys_nz = nz_coarse
-
     return nx_coarse, nz_coarse, phys_slice, phys_nx, phys_nz
 
-# ---------- 构建完整波场快照 ----------
 def build_full_snapshot(fieldname, filepath, modelinfo, pml_thick):
     cgrid = modelinfo["coarse"]
     fine_list = modelinfo.get("fine", [])
@@ -163,7 +139,6 @@ def build_full_snapshot(fieldname, filepath, modelinfo, pml_thick):
 
     full_arr = coarse_phys.copy()
 
-    # 如果不显示任何细网格，直接返回粗网格部分
     if not SHOW_FINE_GRIDS:
         return full_arr
 
@@ -193,7 +168,6 @@ def build_full_snapshot(fieldname, filepath, modelinfo, pml_thick):
             print_progress(f"细网格块 {idx} 长度不足, 跳过")
             break
 
-        # 判断当前细网格是否需要显示
         show_this = (FINE_GRID_INDICES is None) or (idx in FINE_GRID_INDICES)
 
         if show_this:
@@ -201,17 +175,13 @@ def build_full_snapshot(fieldname, filepath, modelinfo, pml_thick):
 
             # --- 起始下标严格修正 ---
             if CROP_PML_HALO:
-                # 裁剪模式：需要减去 PML 和 halo
                 halo_left = HALO[field_type]['left']
                 halo_top  = HALO[field_type]['top']
-                
-                # 粗网格有效区目标插入索引
                 insert_i0 = x0 - (pml_thick + halo_left)
-                insert_i1 = x1 - (pml_thick + halo_left) + 1  # 因为右闭包
+                insert_i1 = x1 - (pml_thick + halo_left) + 1
                 insert_j0 = z0 - (pml_thick + halo_top)
                 insert_j1 = z1 - (pml_thick + halo_top) + 1
             else:
-                # 不裁剪模式：直接使用粗网格索引
                 insert_i0 = x0
                 insert_i1 = x1 + 1
                 insert_j0 = z0
@@ -223,7 +193,6 @@ def build_full_snapshot(fieldname, filepath, modelinfo, pml_thick):
                 offset += block_size
                 continue
 
-            # 粗网格有效区像素宽度
             target_width  = insert_i1 - insert_i0
             target_height = insert_j1 - insert_j0
 
@@ -235,12 +204,10 @@ def build_full_snapshot(fieldname, filepath, modelinfo, pml_thick):
             # 安全防护，必须完全对齐
             actual_h, actual_w = fine_resampled.shape
             if actual_h != target_height or actual_w != target_width:
-                # 防止插值取整偏差
                 fine_resampled = fine_resampled[:target_height, :target_width]
 
             full_arr[insert_j0:insert_j1, insert_i0:insert_i1] = fine_resampled
 
-        # 无论是否显示，都要增加偏移量，以保证后续数据读取正确
         offset += block_size
 
     return full_arr
@@ -250,16 +217,14 @@ def plot_snapshot(fieldname, filebase, arr, cgrid):
     vmin, vmax = FIELD_RANGE[fieldname]
     cmap = FIELD_CMAP[fieldname]
     extent = [0, dx * arr.shape[1], dz * arr.shape[0], 0]
-    
     fig, ax = plt.subplots(figsize=(10, 10))
     im = ax.imshow(arr, cmap=cmap, vmin=vmin, vmax=vmax, extent=extent, interpolation='none', aspect='auto')
-    ax.set_aspect('equal')  # 确保物理比例正确
+    ax.set_aspect('equal')
     fig.colorbar(im, ax=ax)
     ax.set_title(f"{fieldname}  :  {filebase}")
     ax.set_xlabel("x (m)")
     ax.set_ylabel("z (m)")
     fig.tight_layout()
-    
     outdir = os.path.join(IMAGE_BASE, fieldname)
     os.makedirs(outdir, exist_ok=True)
     savepath = os.path.join(outdir, filebase.replace('.bin', '.png'))
@@ -267,111 +232,127 @@ def plot_snapshot(fieldname, filebase, arr, cgrid):
     plt.close(fig)
     return savepath
 
-# ---------- 新的地震记录绘图函数 (wigb) ----------
-def wigb(a=None, scale=1, x=None, z=None, a_max=None, ax=None, figsize=(30, 15), aspect='auto', no_plot=False, direction='Vertical'):
+# ---------- 地震记录绘图函数 wigb（正确版本）----------
+def wigb(a, scal=None, x=None, z=None, amx=None):
     """
-    wigb - plot seismic trace data
-    Thanks to XINGONG LI's contribution on MATLAB (https://geog.ku.edu/xingong-li)
-
-    :param a: Seismic data (trace data * traces)
-    :param scale: Scale factor (Default 1)
-    :param x: x-axis info (traces) (Default None)
-    :param z: z-axis info (trace data) (Default None)
-    :param a_max: Magnitude of input data (Default None)
-    :param aspect: Display aspect (Default 'auto'). Can be 'auto', 'equal', or a positive real number
-    :param ax: The axes handler (Default None). The default value indicate the axes is generated within this function
-    :param figsize: Size of figure (Default (30, 15)). This parameter works only if ax is None.
-    :param no_plot: Do not plot immediately (Default False)
-    :param direction: Display direction (Default 'Vertical'). Either 'Vertical' or 'Horizontal'.
-
-    :return: if no_plot is False, plot the seismic data, otherwise, do not plot immediately,
-            users can adjust plot parameters outside. Always returns (fig, ax).
+    WIGB: Plot seismic data using wiggles (Python version)
+    
+    Parameters
+    ----------
+    a : 2D ndarray
+        Seismic data of shape (nz, nx), where nz = time/depth samples, nx = number of traces.
+    scal : float, optional
+        Scale factor applied to data. If None, defaults to 1.
+    x : 1D array, optional
+        Offset/position for each trace (length nx). If None, defaults to 1:nx.
+    z : 1D array, optional
+        Vertical axis (time/depth) values (length nz). If None, defaults to 1:nz.
+    amx : float, optional
+        Amplitude range for scaling. If None, uses the maximum absolute value of the entire data.
     """
-    a = copy.copy(a)
-    n_data, n_trace = a.shape
+    nz, nx = a.shape
+    trmx = np.max(np.abs(a), axis=0)
 
     if x is None:
-        x = np.arange(n_trace)
+        x = np.arange(1, nx + 1)
     if z is None:
-        z = np.arange(n_data)
-    if a_max is None:
-        a_max = np.max(np.max(a, axis=0))
-    if direction not in ['Horizontal', 'Vertical']:
-        raise ValueError('Direction must be either \'Horizontal\' or \'Vertical\'')
+        z = np.arange(1, nz + 1)
+    if scal is None:
+        scal = 1.0
+    if amx is None:
+        amx = np.max(np.abs(a))
 
-    x = np.array(x)
-    z = np.array(z)
+    x = np.asarray(x)
+    z = np.asarray(z)
 
-    dx = np.mean(x[1:] - x[:n_trace - 1])
-    dz = np.mean(z[1:] - z[:n_data - 1])
+    if nx <= 1:
+        print(' ERR: wigb: nx has to be more than 1')
+        return
 
-    a *= scale * dx / a_max
+    dx = np.median(np.diff(x))
+    dz = z[1] - z[0]
 
-    if ax is None:
-        fig, ax = plt.subplots(figsize=figsize)
-    else:
-        fig = ax.figure
+    xmx = np.max(a)
+    xmn = np.min(a)
 
-    ax.set_aspect(aspect=aspect)
+    if scal == 0:
+        scal = 1.0
+    a = a * dx / amx * scal
 
-    if direction == 'Vertical':
-        ax.set_xlim(-2 * dx, x[-1] + 2 * dx)
-        ax.set_ylim(-dz, z[-1] + dz)
-        ax.invert_yaxis()
+    print(f' PlotWig: data range [{xmn:.4f}, {xmx:.4f}], using amx={amx:.4f}')
 
-        for index_x in range(n_trace):
-            zero_offset = index_x*dx
-            trace = a[:, index_x]
-            ax.plot(zero_offset + trace, z, 'k-', linewidth=2)
-            ax.fill_betweenx(
-                np.array([y * dz for y in range(n_data)]),
-                np.zeros_like(np.arange(n_data)) + zero_offset,
-                trace + zero_offset,
-                where=trace > 0,
-                interpolate=True,
-                color='k',
-                antialiased=True
-            )
+    x1 = np.min(x) - 2.0 * dx
+    x2 = np.max(x) + 2.0 * dx
+    z1 = np.min(z) - dz
+    z2 = np.max(z) + dz
 
-    elif direction == 'Horizontal':
-        ax.set_xlim(-dz, z[-1] + dz)
-        ax.set_ylim(-2 * dx, x[-1] + 2 * dx)
-        ax.invert_yaxis()
+    ax = plt.gca()
+    ax.set_xlim(x1, x2)
+    ax.set_ylim(z2, z1)
+    ax.set_box_aspect(None)
+    ax.set_title('Wiggle plot')
+    ax.set_xlabel('Offset')
+    ax.set_ylabel('Time/Depth')
 
-        for index_z in range(n_trace):
-            zero_offset = index_z*dx
-            trace = a[:, index_z]
-            ax.plot(z, zero_offset + trace, 'k-', linewidth=2)
+    fillcolor = 'k'
+    linecolor = 'k'
+    linewidth = 0.1
 
-            ax.fill_between(
-                np.array([y * dz for y in range(n_data)]),
-                np.zeros_like(np.arange(n_data)) + zero_offset,
-                trace + zero_offset,
-                where=trace > 0,
-                interpolate=True,
-                color='k',
-                antialiased=True
-            )
+    zstart = z[0]
+    zend = z[-1]
 
-    if not no_plot:
-        plt.show()
+    for i in range(nx):
+        if trmx[i] != 0:
+            tr = a[:, i]
+            s = np.sign(tr)
+            idx_change = np.where(s[:-1] != s[1:])[0]
+            if len(idx_change) > 0:
+                zadd = idx_change + 1 + tr[idx_change] / (tr[idx_change] - tr[idx_change + 1])
+            else:
+                zadd = np.array([])
 
-    return fig, ax   # 返回 figure 和 axes 以便外部保存
+            zpos = np.where(tr > 0)[0] + 1
+            apos = tr[tr > 0]
 
-def plot_record_wigb(record_bin, out_png, nx, dt, dx, skip=4, gain=1.0, lwidth=0.3, output_dt=0.001):
-    """
-    读取二进制地震记录，按指定输出采样间隔降采样后，用 wigb 绘图并保存。
-    record_bin: 二进制文件路径
-    out_png   : 输出 PNG 文件路径
-    nx        : 总道数
-    dt        : 原始时间采样间隔 (s) —— 来自模拟参数
-    dx        : 道间距 (m)
-    skip      : 每隔 skip 道画一道
-    gain      : 增益因子
-    lwidth    : 线宽
-    output_dt : 输出图像的时间采样间隔 (s)，默认为 0.001
-    """
-    # 读取数据
+            if len(zpos) == 0 and len(zadd) == 0:
+                ax.plot(tr + x[i], z, color=linecolor, linewidth=linewidth)
+                ax.plot([x[i], x[i]], [zstart, zend], color='white', linewidth=linewidth)
+                continue
+
+            z_all = np.concatenate((zpos, zadd))
+            a_all = np.concatenate((apos, np.zeros_like(zadd)))
+            sort_idx = np.argsort(z_all)
+            zz = z_all[sort_idx]
+            aa = a_all[sort_idx]
+
+            if tr[0] > 0:
+                a0 = 0.0
+                z0 = 1.0
+            else:
+                a0 = 0.0
+                z0 = zadd[0] if len(zadd) > 0 else 1.0
+
+            if tr[-1] > 0:
+                a1 = 0.0
+                z1 = float(nz)
+            else:
+                a1 = 0.0
+                z1 = zadd[-1] if len(zadd) > 0 else float(nz)
+
+            zz = np.concatenate(([z0], zz, [z1], [z0]))
+            aa = np.concatenate(([a0], aa, [a1], [a0]))
+
+            zzz = zstart + (zz - 1) * dz
+
+            ax.fill(aa + x[i], zzz, color=fillcolor, linewidth=0)
+            ax.plot([x[i], x[i]], [zstart, zend], color='white', linewidth=linewidth)
+            ax.plot(tr + x[i], z, color=linecolor, linewidth=linewidth)
+        else:
+            ax.plot([x[i], x[i]], [zstart, zend], color='red', linewidth=linewidth)
+
+    plt.draw()
+
+def plot_record_wigb(record_bin, out_png, nx, dt, dx, pml_thick, skip=4, gain=1.0, output_dt=0.001):
     rec = np.fromfile(record_bin, dtype=np.float32)
     nt = rec.size // nx
     if rec.size % nx != 0:
@@ -379,38 +360,43 @@ def plot_record_wigb(record_bin, out_png, nx, dt, dx, skip=4, gain=1.0, lwidth=0
         rec = rec[:nt*nx]
     rec_mat = rec.reshape((nt, nx))
 
-    # 计算时间降采样因子
+    # 根据 CROP_PML_HALO 裁剪道
+    if CROP_PML_HALO:
+        left_cut = pml_thick + HALO['full']['left']
+        right_cut = pml_thick + HALO['full']['right']
+        start_trace = left_cut
+        end_trace = nx - right_cut
+        if start_trace >= end_trace:
+            print_progress("警告：裁剪后无有效道，跳过裁剪")
+            start_trace = 0
+            end_trace = nx
+        rec_mat = rec_mat[:, start_trace:end_trace]
+        print_progress(f"  裁剪道：保留 {start_trace} 到 {end_trace-1} (原 nx={nx})")
+    else:
+        start_trace = 0
+        end_trace = nx
+
+    # 时间降采样
     if output_dt <= 0:
         raise ValueError("output_dt 必须为正数")
     step_t = int(round(output_dt / dt))
     if abs(step_t * dt - output_dt) > 1e-12:
         print_progress(f"警告: output_dt={output_dt}s 不是原始 dt={dt}s 的整数倍，将使用 step_t={step_t}，实际输出间隔={step_t*dt:.6f}s")
-    # 降采样时间轴
-    rec_mat = rec_mat[::step_t, :]          # 只保留每 step_t 个时间点
+    rec_mat = rec_mat[::step_t, :]
     nt_new = rec_mat.shape[0]
 
-    # 根据 skip 对道进行子采样
+    # 道降采样
     rec_mat = rec_mat[:, ::skip]
     n_trace_plot = rec_mat.shape[1]
 
-    # 生成物理坐标
-    x_coords = np.arange(n_trace_plot) * dx * skip          # 道的中心位置
-    z_coords = np.arange(nt_new) * output_dt                # 时间轴（秒）
+    # 物理坐标
+    x_coords = (start_trace + np.arange(n_trace_plot) * skip) * dx
+    z_coords = np.arange(nt_new) * output_dt
 
-    # 调用 wigb 函数
-    fig, ax = wigb(
-        a=rec_mat,
-        scale=gain,
-        x=x_coords,
-        z=z_coords,
-        ax=None,
-        figsize=(30, 15),
-        aspect='auto',
-        no_plot=True,
-        direction='Vertical'
-    )
+    fig, ax = plt.subplots(figsize=(30, 15))
+    plt.sca(ax)
+    wigb(rec_mat, scal=gain, x=x_coords, z=z_coords)
 
-    # 保存图像
     os.makedirs(os.path.dirname(out_png), exist_ok=True)
     fig.savefig(out_png, dpi=300, bbox_inches='tight')
     plt.close(fig)
@@ -433,10 +419,8 @@ def main():
     paramsinfo = load_json(PARAMS_JSON)
     pml_thick = paramsinfo["cpml"]["thickness"]
 
-    # 显示当前模式
     mode_str = "裁剪 PML 和 halo" if CROP_PML_HALO else "显示完整区域（包含 PML 和 halo）"
     print_progress(f"当前模式: {mode_str}")
-    
     fine_mode_str = f"显示细网格: {SHOW_FINE_GRIDS}"
     if SHOW_FINE_GRIDS:
         if FINE_GRID_INDICES is None:
@@ -446,14 +430,15 @@ def main():
     else:
         fine_mode_str += " (不显示细网格)"
     print_progress(f"当前细网格设置: {fine_mode_str}")
+    print_progress("地震记录绘图: 使用正确 wigb（全局最大归一化）")
 
-    # ========== 1. 串行处理地震记录 ==========
+    # 串行处理地震记录
     record_tasks = []
     if os.path.exists(RECORD_DIR):
         for fname in sorted(os.listdir(RECORD_DIR)):
             if fname.endswith('.bin'):
                 record_tasks.append(fname)
-    
+
     if record_tasks:
         print_progress(f"\n开始串行处理地震记录，共 {len(record_tasks)} 个文件...")
         for idx, fname in enumerate(record_tasks, start=1):
@@ -461,19 +446,19 @@ def main():
             plot_record_wigb(
                 os.path.join(RECORD_DIR, fname),
                 os.path.join(IMAGE_BASE, 'record', fname.replace('.bin', '.png')),
-                modelinfo["coarse"]["nx"],      # 总道数
-                paramsinfo["base"]["dt"],       # 原始时间步长 (s)
-                modelinfo["coarse"]["dx"],      # 道间距 (m)
-                skip=5,                          # 每隔5道画一道
+                modelinfo["coarse"]["nx"],
+                paramsinfo["base"]["dt"],
+                modelinfo["coarse"]["dx"],
+                pml_thick,
+                skip=5,
                 gain=1.0,
-                lwidth=0.3,
-                output_dt=0.001                  # 输出图像的时间采样间隔
+                output_dt=0.001
             )
         print_progress("地震记录处理完成。\n")
     else:
         print_progress("未找到地震记录文件，跳过。")
 
-    # ========== 2. 并行处理波场快照 ==========
+    # 并行处理波场快照
     snapshot_tasks = []
     for fieldname in FIELD_NAMES:
         field_dir = os.path.join(OUTPUT_BASE, fieldname)

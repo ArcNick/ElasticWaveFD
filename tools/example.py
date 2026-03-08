@@ -24,7 +24,7 @@ fine_regions = [
     {
         "x_start": 100, "x_end": 150,   # x方向范围
         "z_start": 150, "z_end": 200,   # z方向范围
-        "N": 21                          # 加密倍数
+        "N": 3                          # 加密倍数
     }
 ]
 
@@ -37,14 +37,14 @@ posz = nz // 2
 # Δh = 1/3, 1/5, 1/11, Δt 选择 1e-5
 # Δh = 1/13, 1/15, 1/21, Δt 选择5e-6
 fpeak = 30.0       # 主频 Hz
-dt = 5e-6          # 时间步长 s
-nt = 64000          # 总时间步数
+dt = 1e-5          # 时间步长 s
+nt = 32000          # 总时间步数
 snapshot = 1000     # 快照间隔
 
 
 
 # CPML参数（标准值）
-cpml_thickness = 40
+cpml_thickness = 20
 cpml_N = 3
 cp_max = vp        # 最大纵波速度
 Rc = 0.001

@@ -4,6 +4,7 @@
 #include <cuda_runtime.h>
 #include <iostream>
 
+__constant__ float freq;
 __constant__ float dt_d;
 __constant__ int nt_d;
 __constant__ int posx_d;
@@ -35,6 +36,7 @@ void Params::read(const std::string &file) {
 }
 
 void Params::build_constant() {
+    cudaMemcpyToSymbol(freq, &fpeak, sizeof(float), 0, cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(dt_d, &dt, sizeof(float), 0, cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(nt_d, &nt, sizeof(int), 0, cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(posx_d, &posx, sizeof(int), 0, cudaMemcpyHostToDevice);

@@ -6,21 +6,31 @@
 #include <cuda_runtime.h>
 
 #define LUT_SIZE 100
-#define LAGRANGE_ORDER 4
+#define LAGRANGE_ORDER 8
 
-enum FINE_FLAG{FINE_OFF = 0, FINE_ON = 1};
+enum FINE_FLAG { FINE_OFF = 0, FINE_ON = 1 };
+enum MAT_FLAG { SOLID = 0, FLUID = 1 };
 
 struct FD_n {
     int n_x;
     int n_z;
 };
 
+struct Mask {
+    int *vx;
+    int *vz;
+    int *sig;
+    int *txz;
+};
+
 struct Core {
     float *vx;
     float *vz;
+    float *p;
     float *sx;
     float *sz;
     float *txz;
+    float *r;
 };
 
 struct Model {
@@ -29,6 +39,8 @@ struct Model {
     float *C13 = nullptr;
     float *C33 = nullptr;
     float *C55 = nullptr;
+    float *Qp = nullptr;
+    MAT_FLAG *mat = nullptr;
 };
 
 struct FineInfo {
@@ -52,14 +64,14 @@ public:
 
     int offset_time_vx;
     int offset_time_vz;
-    int offset_time_sx;
-    int offset_time_sz;
+    int offset_time_sig;
     int offset_time_txz;
 
-    Core core_h, core_d, core_mask;
+    Mask core_mask;
+    Core core_h, core_d;
     Model model_h, model_d;
 
-    FD_n *vx_n, *vz_n, *sx_n, *sz_n, *txz_n;
+    FD_n *vx_n, *vz_n, *sig_n, *txz_n;
 
     std::vector<FineInfo> fine_info;
 
@@ -72,19 +84,19 @@ public:
     void memcpy_model_h2d();
     void memcpy_core_d2h(int time);
 
-        // 用于保存 n 数组纹理对象
+    // 用于保存 n 数组纹理对象
     cudaTextureObject_t tex_vx_n;
     cudaTextureObject_t tex_vz_n;
-    cudaTextureObject_t tex_sx_n;
-    cudaTextureObject_t tex_sz_n;
+    cudaTextureObject_t tex_sig_n;
     cudaTextureObject_t tex_txz_n;
 
     // 用于保存 mask 纹理对象
     cudaTextureObject_t tex_vx_mask;
     cudaTextureObject_t tex_vz_mask;
-    cudaTextureObject_t tex_sx_mask;
-    cudaTextureObject_t tex_sz_mask;
+    cudaTextureObject_t tex_sig_mask;
     cudaTextureObject_t tex_txz_mask;
+
+    // cudaTextureObject_t tex_mat;
 
 private:
     FINE_FLAG FINE;
@@ -101,27 +113,20 @@ private:
 // 设备端全局符号声明
 extern __device__ cudaTextureObject_t vx_mask;
 extern __device__ cudaTextureObject_t vz_mask;
-extern __device__ cudaTextureObject_t sx_mask;
-extern __device__ cudaTextureObject_t sz_mask;
+extern __device__ cudaTextureObject_t sig_mask;
 extern __device__ cudaTextureObject_t txz_mask;
+extern __device__ cudaTextureObject_t mat_tex;
 
 extern __device__ cudaTextureObject_t vx_n_tex;
 extern __device__ cudaTextureObject_t vz_n_tex;
-extern __device__ cudaTextureObject_t sx_n_tex;
-extern __device__ cudaTextureObject_t sz_n_tex;
+extern __device__ cudaTextureObject_t sig_n_tex;
 extern __device__ cudaTextureObject_t txz_n_tex;
 
 extern __constant__ float dx, dz;
 extern __constant__ int nx, nz;
-extern __constant__ int stride_vx;
-extern __constant__ int stride_vz;
-extern __constant__ int stride_sx;
-extern __constant__ int stride_sz;
-extern __constant__ int stride_txz;
 extern __constant__ int offset_vx_all;
 extern __constant__ int offset_vz_all;
-extern __constant__ int offset_sx_all;
-extern __constant__ int offset_sz_all;
+extern __constant__ int offset_sig_all;
 extern __constant__ int offset_txz_all;
 
 extern float dx_host_coarse, dz_host_coarse;
@@ -131,8 +136,7 @@ extern __constant__ int num_fine;
 extern __constant__ FineInfo fines[12];
 extern __constant__ int sum_offset_fine_vx[12];
 extern __constant__ int sum_offset_fine_vz[12];
-extern __constant__ int sum_offset_fine_sx[12];
-extern __constant__ int sum_offset_fine_sz[12];
+extern __constant__ int sum_offset_fine_sig[12];
 extern __constant__ int sum_offset_fine_txz[12];
 
 extern __constant__ float lagrange_coeff[LUT_SIZE * LAGRANGE_ORDER];

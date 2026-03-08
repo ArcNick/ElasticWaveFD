@@ -6,13 +6,11 @@
 
 __device__ int IdxVxCo(int ix, int iz, int time);
 __device__ int IdxVzCo(int ix, int iz, int time);
-__device__ int IdxSxCo(int ix, int iz, int time);
-__device__ int IdxSzCo(int ix, int iz, int time);
+__device__ int IdxSigCo(int ix, int iz, int time);
 __device__ int IdxTxzCo(int ix, int iz, int time);
 __device__ int IdxVxFi(int ix, int iz, int time, int zone);
 __device__ int IdxVzFi(int ix, int iz, int time, int zone);
-__device__ int IdxSxFi(int ix, int iz, int time, int zone);
-__device__ int IdxSzFi(int ix, int iz, int time, int zone);
+__device__ int IdxSigFi(int ix, int iz, int time, int zone);
 __device__ int IdxTxzFi(int ix, int iz, int time, int zone);
 
 __device__ int get_cpml_idx_x_int(int ix);
@@ -25,7 +23,5 @@ __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int
 __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, int cur);
 __global__ void update_stress_fine(Core core, Model model, int cur, int zone);
 __global__ void update_velocity_fine(Core core, Model model, int cur, int zone);
-__global__ void sync_fine_to_coarse_str(Core core, int cur, int zone);
-__global__ void sync_fine_to_coarse_vel(Core core, int cur, int zone);
 
 #endif

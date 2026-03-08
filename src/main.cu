@@ -186,8 +186,8 @@ void output_snapshots(GridManager &gm, int it, float dt, int time) {
 
     fwrite(gm.core_h.vx, sizeof(float), gm.offset_time_vx, fp_vx);
     fwrite(gm.core_h.vz, sizeof(float), gm.offset_time_vz, fp_vz);
-    fwrite(gm.core_h.sx, sizeof(float), gm.offset_time_sx, fp_sx);
-    fwrite(gm.core_h.sz, sizeof(float), gm.offset_time_sz, fp_sz);
+    fwrite(gm.core_h.sx, sizeof(float), gm.offset_time_sig, fp_sx);
+    fwrite(gm.core_h.sz, sizeof(float), gm.offset_time_sig, fp_sz);
     fwrite(gm.core_h.txz, sizeof(float), gm.offset_time_txz, fp_txz);
 
     fclose(fp_vx);
@@ -200,7 +200,7 @@ void output_snapshots(GridManager &gm, int it, float dt, int time) {
 void output_record(const GridManager &gm, int z, FILE *fp, int time) {
     cudaMemcpy(
         buffer, 
-        gm.core_d.vz + time * gm.offset_time_sz + z * (gm.nx_coarse), 
+        gm.core_d.vz + time * gm.offset_time_vz + z * (gm.nx_coarse), 
         sizeof(float) * (gm.nx_coarse), 
         cudaMemcpyDeviceToHost
     );

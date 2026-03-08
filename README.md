@@ -17,7 +17,7 @@
      ```bash
      compute-sanitizer --tool memcheck --leak-check full --log-file report.txt ./bin/main_debug
      ```
-
+若使用 `compute-sanitizer` ，在 wsl2 环境下，且显卡为 Blackwell 架构，请确保 windows 和 wsl2 同时安装了cuda toolkit，否则该工具可能无法使用
 # 图片生成
-运行 tools/getImages.py 输出到 /snapshot_images 目录下，只能用于纯粗网格
-tools/cop.py 输出到 /images，可以输出用粗细网格，但有问题。
+运行 `tools/getImages.py` 输出到 `/snapshot_images` 目录下，只能用于纯粗网格
+`tools/cop.py` 输出到 `/images`，可以输出用粗细网格，但有问题。
