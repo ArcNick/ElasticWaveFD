@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 plt.rcParams['figure.max_open_warning'] = 50
 
 # ==================== 控制开关 ====================
-CROP_PML_HALO = True
+CROP_PML_HALO = False
 SHOW_FINE_GRIDS = True
 FINE_GRID_INDICES = [0]
 

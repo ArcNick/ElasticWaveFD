@@ -5,7 +5,7 @@
 #include <vector>
 #include <cuda_runtime.h>
 
-#define LUT_SIZE 100
+#define LUT_SIZE 1000
 #define LAGRANGE_ORDER 8
 
 enum FINE_FLAG { FINE_OFF = 0, FINE_ON = 1 };
@@ -39,7 +39,8 @@ struct Model {
     float *C13 = nullptr;
     float *C33 = nullptr;
     float *C55 = nullptr;
-    float *Qp = nullptr;
+    float *tau = nullptr;
+    float *inv_taus = nullptr;
     MAT_FLAG *mat = nullptr;
 };
 
@@ -96,7 +97,7 @@ public:
     cudaTextureObject_t tex_sig_mask;
     cudaTextureObject_t tex_txz_mask;
 
-    // cudaTextureObject_t tex_mat;
+    cudaTextureObject_t tex_mat;
 
 private:
     FINE_FLAG FINE;
@@ -104,7 +105,7 @@ private:
     void load_from_file(const std::string &file);
     void memory_allocate();
     void memory_release();
-    void build_mask();
+    void build_texture();
     void build_n();
     void build_constant();
     void build_insterp_LUT();

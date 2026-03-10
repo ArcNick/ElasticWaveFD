@@ -73,7 +73,6 @@ void GridManager::load_from_file(const std::string &file) {
     } else {
         FINE = FINE_ON;
     }
-    
     int num = 0;
     if (FINE == FINE_ON) num = cJSON_GetArraySize(fine_ptr);
 
@@ -101,16 +100,16 @@ void GridManager::load_from_file(const std::string &file) {
     memory_allocate();
 
     // 读取模型参数文件
-    struct Pair { void *ptr; std::string name; } dst[7] = {
+    struct Pair { void *ptr; std::string name; } dst[8] = {
         { model_h.rho, "rho" }, { model_h.C11, "C11" }, { model_h.C13, "C13" },
-        { model_h.C33, "C33" }, { model_h.C55, "C55" }, { model_h.Qp, "Qp"}, 
-        { model_h.mat, "material"}
+        { model_h.C33, "C33" }, { model_h.C55, "C55" }, { model_h.tau, "tau"}, 
+        { model_h.inv_taus, "inv_taus"}, { model_h.mat, "material"}
     };
     std::string filename;
 
     cJSON *item = nullptr;
     // coarse
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 8; i++) {
         item = coarse_ptr;
         item = cJSON_GetObjectItem(item, dst[i].name.c_str());
         filename = item->valuestring;
@@ -125,7 +124,7 @@ void GridManager::load_from_file(const std::string &file) {
 
     // fine
     for (int i = 0, offset = nx_coarse * nz_coarse; i < num; i++, offset += fine_info[i].lenx * fine_info[i].lenz) {
-        for (int j = 0; j < 7; j++) {
+        for (int j = 0; j < 8; j++) {
             item = fine_ptr;
             item = cJSON_GetArrayItem(item, i);
             item = cJSON_GetObjectItem(item, dst[j].name.c_str());
@@ -142,7 +141,7 @@ void GridManager::load_from_file(const std::string &file) {
 
     cJSON_Delete(root);
 
-    build_mask();
+    build_texture();
     build_n();
     build_constant();
     build_insterp_LUT();
@@ -175,11 +174,12 @@ void GridManager::memcpy_model_h2d() {
     cudaMemcpy(model_d.C13, model_h.C13, bytes_sig, cudaMemcpyHostToDevice);
     cudaMemcpy(model_d.C33, model_h.C33, bytes_sig, cudaMemcpyHostToDevice);
     cudaMemcpy(model_d.C55, model_h.C55, bytes_sig, cudaMemcpyHostToDevice);
-    cudaMemcpy(model_d.Qp, model_h.Qp, bytes_sig, cudaMemcpyHostToDevice);
-    cudaMemcpy(model_d.mat, model_d.mat, bytes_mat, cudaMemcpyHostToDevice);
+    cudaMemcpy(model_d.tau, model_h.tau, bytes_sig, cudaMemcpyHostToDevice);
+    cudaMemcpy(model_d.inv_taus, model_h.inv_taus, bytes_sig, cudaMemcpyHostToDevice);
+    cudaMemcpy(model_d.mat, model_h.mat, bytes_mat, cudaMemcpyHostToDevice);
 }
 
-void GridManager::build_mask() {
+void GridManager::build_texture() {
     int *vx_mask_h = new int[(nx_coarse - 1) * nz_coarse]();
     int *vz_mask_h = new int[nx_coarse * (nz_coarse - 1)]();
     int *sig_mask_h = new int[nx_coarse * nz_coarse]();
@@ -263,6 +263,12 @@ void GridManager::build_mask() {
     resDesc.res.linear.sizeInBytes = bytes_txz_mask;
     cudaCreateTextureObject(&tex_txz_mask, &resDesc, &texDesc, NULL);
     cudaMemcpyToSymbol(txz_mask, &tex_txz_mask, sizeof(cudaTextureObject_t));
+
+    // mat
+    resDesc.res.linear.devPtr = model_d.mat;
+    resDesc.res.linear.sizeInBytes = nx_coarse * nz_coarse * sizeof(int);
+    cudaCreateTextureObject(&tex_mat, &resDesc, &texDesc, NULL);
+    cudaMemcpyToSymbol(mat_tex, &tex_mat, sizeof(cudaTextureObject_t));
 
     delete[] vx_mask_h;
     delete[] vz_mask_h;
@@ -453,7 +459,8 @@ void GridManager::memory_allocate() {
     model_h.C13 = new float[offset_time_sig]();
     model_h.C33 = new float[offset_time_sig]();
     model_h.C55 = new float[offset_time_sig]();
-    model_h.Qp = new float[offset_time_sig]();
+    model_h.tau = new float[offset_time_sig]();
+    model_h.inv_taus = new float[offset_time_sig]();
     model_h.mat = new MAT_FLAG[offset_time_sig]();
 
     // device model
@@ -462,7 +469,8 @@ void GridManager::memory_allocate() {
     cudaMalloc((void**)&model_d.C13, offset_time_sig * sizeof(float));
     cudaMalloc((void**)&model_d.C33, offset_time_sig * sizeof(float));
     cudaMalloc((void**)&model_d.C55, offset_time_sig * sizeof(float));
-    cudaMalloc((void**)&model_d.Qp, offset_time_sig * sizeof(float));
+    cudaMalloc((void**)&model_d.tau, offset_time_sig * sizeof(float));
+    cudaMalloc((void**)&model_d.inv_taus, offset_time_sig * sizeof(float));
     cudaMalloc((void**)&model_d.mat, offset_time_sig * sizeof(MAT_FLAG));
 
     // compute n arrays total size
@@ -531,7 +539,8 @@ void GridManager::memory_release() {
     if (model_h.C13) { delete[] model_h.C13; model_h.C13 = nullptr; }
     if (model_h.C33) { delete[] model_h.C33; model_h.C33 = nullptr; }
     if (model_h.C55) { delete[] model_h.C55; model_h.C55 = nullptr; }
-    if (model_h.Qp) { delete[] model_h.Qp; model_h.Qp = nullptr; }
+    if (model_h.tau) { delete[] model_h.tau; model_h.tau = nullptr; }
+    if (model_h.inv_taus) { delete[] model_h.inv_taus; model_h.inv_taus = nullptr; }
     if (model_h.mat) { delete[] model_h.mat; model_h.mat = nullptr; }
 
     // device model
@@ -540,7 +549,8 @@ void GridManager::memory_release() {
     if (model_d.C13) { cudaFree(model_d.C13); model_d.C13 = nullptr; }
     if (model_d.C33) { cudaFree(model_d.C33); model_d.C33 = nullptr; }
     if (model_d.C55) { cudaFree(model_d.C55); model_d.C55 = nullptr; }
-    if (model_d.Qp) { cudaFree(model_d.Qp); model_d.Qp = nullptr; }
+    if (model_d.tau) { cudaFree(model_d.tau); model_d.tau = nullptr; }
+    if (model_d.inv_taus) { cudaFree(model_d.inv_taus); model_d.inv_taus = nullptr; }
     if (model_d.mat) { cudaFree(model_d.mat); model_d.mat = nullptr; }
 
     // 先销毁纹理对象（它们依赖下面的内存）
