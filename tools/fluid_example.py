@@ -7,22 +7,22 @@ FLUID = 1
 
 # ========== 模型参数 ==========
 # 粗网格尺寸
-nx = 501
-nz = 501
+nx = 251
+nz = 251
 dx = 1.0
 dz = 1.0
 
 # 时间参数
 fpeak = 30.0
-dt = 1e-4
-nt = 16000
-snapshot = 1000
+dt = 1e-5
+nt = 32000
+snapshot = 800
 
 # 介质参数（均匀介质）
 # 固体区域
-rho_solid = 2500.0
-vp_solid = 3600.0
-vs_solid = 2000.0
+rho_solid = 2000.0
+vp_solid = 3000.0
+vs_solid = 1500.0
 C11_solid = rho_solid * vp_solid**2
 C55_solid = rho_solid * vs_solid**2
 C13_solid = C11_solid - 2 * C55_solid
@@ -55,11 +55,11 @@ posx = nx // 2
 posz = nz // 4
 
 # CPML参数
-cpml_thickness = 20
+cpml_thickness = 10
 cpml_N = 3
 cp_max = vp_solid
 Rc = 0.001
-kappa0 = 1.5
+kappa0 = 1.0
 
 # ========== 创建目录结构 ==========
 base_dir = "models"

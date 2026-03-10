@@ -221,7 +221,7 @@ void GridManager::build_texture() {
     int bytes_vz_mask = nx_coarse * (nz_coarse - 1) * sizeof(int);
     int bytes_sig_mask = nx_coarse * nz_coarse * sizeof(int);
     int bytes_txz_mask = (nx_coarse - 1) * (nz_coarse - 1) * sizeof(int);
-
+    int bytes_mat_mask = nx_coarse * nz_coarse * sizeof(MAT_FLAG);
     cudaMemcpy(core_mask.vx, vx_mask_h, bytes_vx_mask, cudaMemcpyHostToDevice);
     cudaMemcpy(core_mask.vz, vz_mask_h, bytes_vz_mask, cudaMemcpyHostToDevice);
     cudaMemcpy(core_mask.sig, sig_mask_h, bytes_sig_mask, cudaMemcpyHostToDevice);
@@ -266,7 +266,7 @@ void GridManager::build_texture() {
 
     // mat
     resDesc.res.linear.devPtr = model_d.mat;
-    resDesc.res.linear.sizeInBytes = nx_coarse * nz_coarse * sizeof(int);
+    resDesc.res.linear.sizeInBytes = bytes_mat_mask;
     cudaCreateTextureObject(&tex_mat, &resDesc, &texDesc, NULL);
     cudaMemcpyToSymbol(mat_tex, &tex_mat, sizeof(cudaTextureObject_t));
 
@@ -558,6 +558,7 @@ void GridManager::memory_release() {
     cudaDestroyTextureObject(tex_vz_mask);
     cudaDestroyTextureObject(tex_sig_mask);
     cudaDestroyTextureObject(tex_txz_mask);
+    cudaDestroyTextureObject(tex_mat);
 
     cudaDestroyTextureObject(tex_vx_n);
     cudaDestroyTextureObject(tex_vz_n);
