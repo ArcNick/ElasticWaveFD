@@ -14,7 +14,7 @@ dz = 1.0
 
 # 时间参数
 fpeak = 30.0
-dt = 5e-5
+dt = 2e-5
 nt = 64000
 snapshot = 800
 
@@ -43,11 +43,11 @@ tau = 1 / Qp * (1 + 1 / Qp**2)**0.5
 
 # 细网格区域（粗网格坐标）
 fine_regions = [
-    # {
-    #     "x_start": 100, "x_end": 150,
-    #     "z_start": 150, "z_end": 200,
-    #     "N": 3
-    # }
+    {
+        "x_start": 200, "x_end": 300,
+        "z_start": 350, "z_end": 400,
+        "N": 3
+    }
 ]
 
 # 震源位置
@@ -79,7 +79,7 @@ coarse_tau = np.full((nz, nx), 0, dtype=np.float32)
 coarse_inv_taus = np.full((nz, nx), 0, dtype=np.float32)
 
 # 标记流体区域
-coarse_MAT[300:400, 200:300] = FLUID
+# coarse_MAT[300:400, 200:300] = FLUID
 coarse_rho[coarse_MAT == FLUID] = rho_fluid
 coarse_C11[coarse_MAT == FLUID] = C11_fluid
 coarse_C13[coarse_MAT == FLUID] = C13_fluid
@@ -119,6 +119,18 @@ for idx, region in enumerate(fine_regions):
     fine_C13 = np.full((lenz, lenx), C13_fluid, dtype=np.float32)
     fine_C33 = np.full((lenz, lenx), C33_fluid, dtype=np.float32)
     fine_C55 = np.full((lenz, lenx), C55_fluid, dtype=np.float32)
+    fine_tau = np.full((lenz, lenx), 0, dtype=np.float32)
+    fine_inv_taus = np.full((lenz, lenx), 0, dtype=np.float32)
+    fine_MAT = np.full((lenz, lenx), SOLID, dtype=np.int32)
+
+    fine_MAT[5 : 130 : 7, 5 : 130] = FLUID
+    fine_rho[fine_MAT == FLUID] = rho_fluid
+    fine_C11[fine_MAT == FLUID] = C11_fluid
+    fine_C13[fine_MAT == FLUID] = C13_fluid
+    fine_C33[fine_MAT == FLUID] = C33_fluid
+    fine_C55[fine_MAT == FLUID] = C55_fluid
+    fine_tau[fine_MAT == FLUID] = tau
+    fine_inv_taus[fine_MAT == FLUID] = inv_ts
     
     # 保存文件
     fine_rho.tofile(os.path.join(region_dir, "rho.bin"))
@@ -126,6 +138,9 @@ for idx, region in enumerate(fine_regions):
     fine_C13.tofile(os.path.join(region_dir, "C13.bin"))
     fine_C33.tofile(os.path.join(region_dir, "C33.bin"))
     fine_C55.tofile(os.path.join(region_dir, "C55.bin"))
+    fine_tau.tofile(os.path.join(region_dir, "tau.bin"))
+    fine_inv_taus.tofile(os.path.join(region_dir, "inv_tau_sigma.bin"))
+    fine_MAT.tofile(os.path.join(region_dir, "material.bin"))
     
     # 记录JSON信息
     fine_list.append({

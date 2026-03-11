@@ -116,6 +116,7 @@ int main() {
 
     for (int it = 0; it < params.nt; it++) {
         int cur = it & 1;
+
         dim3 grid_co((gm.nx_coarse + 15) / 16, (gm.nz_coarse + 15) / 16);
         dim3 block(16, 16);
         update_stress_coarse<<<grid_co, block, 0, stream_co>>>(gm.core_d, gm.model_d, cpml.psi_vel, cur);
@@ -123,6 +124,13 @@ int main() {
             dim3 grid_fi((gm.fine_info[i].lenx + 15) / 16, (gm.fine_info[i].lenz + 15) / 16);
             update_stress_fine<<<grid_fi, block, 0, stream_fi[i]>>>(gm.core_d, gm.model_d, cur, i);
         }
+
+        apply_fluid_boundary_coarse<<<grid_co, block, 0, stream_co>>>(gm.core_d, cur);
+        for (int i = 0; i < gm.fine_info.size(); i++) {
+            dim3 grid_fi((gm.fine_info[i].lenx + 15) / 16, (gm.fine_info[i].lenz + 15) / 16);
+            apply_fluid_boundary_fine<<<grid_fi, block, 0, stream_fi[i]>>>(gm.core_d, cur, i);
+        }
+
         apply_source<<<1, 1, 0, stream_co>>>(gm.core_d, wavelet[it], cur);
         update_velocity_coarse<<<grid_co, block, 0, stream_co>>>(gm.core_d, gm.model_d, cpml.psi_str, cur);
         

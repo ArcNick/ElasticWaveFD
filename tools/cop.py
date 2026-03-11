@@ -19,7 +19,7 @@ SHOW_FINE_GRIDS = True
 FINE_GRID_INDICES = [0]
 
 # ==================== 颜色范围常量 ====================
-VX_VZ_RANGE = (-1e-9, 1e-9)
+VX_VZ_RANGE = (-2e-8, 2e-8)
 SX_SZ_RANGE = (-4e-2, 4e-2)
 TXZ_RANGE   = (-2e-2, 2e-2)
 
