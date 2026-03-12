@@ -6,6 +6,8 @@
 #include <cstring>
 #include <algorithm>
 
+
+
 // 设备端全局符号定义
 __device__ cudaTextureObject_t vx_mask;
 __device__ cudaTextureObject_t vz_mask;
@@ -118,7 +120,11 @@ void GridManager::load_from_file(const std::string &file) {
             std::cout << "无法打开文件: " << filename << '\n';
             exit(1);
         }
-        fread(dst[i].ptr, sizeof(float), nx_coarse * nz_coarse, fp);
+        if (dst[i].name == "material") {
+            fread(static_cast<MAT_FLAG*>(dst[i].ptr), sizeof(MAT_FLAG), nx_coarse * nz_coarse, fp);
+        } else {
+            fread(static_cast<float*>(dst[i].ptr), sizeof(float), nx_coarse * nz_coarse, fp);
+        }
         fclose(fp);
     }
 
@@ -134,7 +140,11 @@ void GridManager::load_from_file(const std::string &file) {
                 std::cout << "无法打开文件: " << filename << '\n';
                 exit(1);
             }
-            fread(dst[j].ptr + offset, sizeof(float), fine_info[i].lenx * fine_info[i].lenz, fp);
+            if (dst[j].name == "material") {
+                fread(static_cast<MAT_FLAG*>(dst[j].ptr) + offset, sizeof(MAT_FLAG), fine_info[i].lenx * fine_info[i].lenz, fp);
+            } else {
+                fread(static_cast<float*>(dst[j].ptr) + offset, sizeof(float), fine_info[i].lenx * fine_info[i].lenz, fp);
+            }
             fclose(fp);
         }
     }

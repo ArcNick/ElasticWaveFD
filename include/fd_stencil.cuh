@@ -1,8 +1,8 @@
 #ifndef FD_STENCIL_CUH
 #define FD_STENCIL_CUH
 
-
 #include <cuda_runtime.h>
+#define MAT(idx) tex1Dfetch<int>(mat_tex, (idx))
 
 __device__ int IdxVxCo(int ix, int iz, int time);
 __device__ int IdxVzCo(int ix, int iz, int time);

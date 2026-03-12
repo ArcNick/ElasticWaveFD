@@ -4,7 +4,6 @@ import json
 import concurrent.futures
 import multiprocessing
 import shutil
-import copy
 from scipy.ndimage import zoom
 
 import matplotlib
@@ -16,10 +15,11 @@ plt.rcParams['figure.max_open_warning'] = 50
 # ==================== 控制开关 ====================
 CROP_PML_HALO = False
 SHOW_FINE_GRIDS = True
-FINE_GRID_INDICES = [0]
+FINE_GRID_INDICES = []
+NORMALIZE_PER_TRACE = True   # 默认 False：使用全局最大值归一化（所有道共用同一个最大值）
 
 # ==================== 颜色范围常量 ====================
-VX_VZ_RANGE = (-2e-8, 2e-8)
+VX_VZ_RANGE = (-1e-9, 1e-9)
 SX_SZ_RANGE = (-4e-2, 4e-2)
 TXZ_RANGE   = (-2e-2, 2e-2)
 
@@ -232,23 +232,14 @@ def plot_snapshot(fieldname, filebase, arr, cgrid):
     plt.close(fig)
     return savepath
 
-# ---------- 地震记录绘图函数 wigb（正确版本）----------
+# ---------- 地震记录绘图函数 wigb（支持 per-trace 归一化）----------
 def wigb(a, scal=None, x=None, z=None, amx=None):
     """
-    WIGB: Plot seismic data using wiggles (Python version)
-    
-    Parameters
-    ----------
-    a : 2D ndarray
-        Seismic data of shape (nz, nx), where nz = time/depth samples, nx = number of traces.
-    scal : float, optional
-        Scale factor applied to data. If None, defaults to 1.
-    x : 1D array, optional
-        Offset/position for each trace (length nx). If None, defaults to 1:nx.
-    z : 1D array, optional
-        Vertical axis (time/depth) values (length nz). If None, defaults to 1:nz.
-    amx : float, optional
-        Amplitude range for scaling. If None, uses the maximum absolute value of the entire data.
+    WIGB: Plot seismic data using wiggles.
+    amx : float or 1D array, optional
+        - If float, use global maximum for all traces.
+        - If 1D array of length nx, each trace is normalized by its own maximum (per-trace).
+        - If None, global maximum is used.
     """
     nz, nx = a.shape
     trmx = np.max(np.abs(a), axis=0)
@@ -259,8 +250,18 @@ def wigb(a, scal=None, x=None, z=None, amx=None):
         z = np.arange(1, nz + 1)
     if scal is None:
         scal = 1.0
+
+    # 处理 amx
     if amx is None:
-        amx = np.max(np.abs(a))
+        amx = np.max(np.abs(a))          # 全局最大值
+        per_trace = False
+    elif np.isscalar(amx):
+        per_trace = False                # 全局标量
+    else:
+        amx = np.asarray(amx)
+        if amx.shape[0] != nx:
+            raise ValueError(f"amx array must have length nx ({nx}), got {amx.shape[0]}")
+        per_trace = True                  # 每道单独最大值
 
     x = np.asarray(x)
     z = np.asarray(z)
@@ -277,9 +278,20 @@ def wigb(a, scal=None, x=None, z=None, amx=None):
 
     if scal == 0:
         scal = 1.0
-    a = a * dx / amx * scal
 
-    print(f' PlotWig: data range [{xmn:.4f}, {xmx:.4f}], using amx={amx:.4f}')
+    # 应用归一化
+    if per_trace:
+        a_norm = np.zeros_like(a)
+        for i in range(nx):
+            if amx[i] != 0:
+                a_norm[:, i] = a[:, i] * dx / amx[i] * scal
+            else:
+                a_norm[:, i] = 0.0
+        a = a_norm
+        print(f' PlotWig (per-trace): data range [{xmn:.4f}, {xmx:.4f}]')
+    else:
+        a = a * dx / amx * scal
+        print(f' PlotWig (global): data range [{xmn:.4f}, {xmx:.4f}], using amx={amx:.4f}')
 
     x1 = np.min(x) - 2.0 * dx
     x2 = np.max(x) + 2.0 * dx
@@ -352,29 +364,35 @@ def wigb(a, scal=None, x=None, z=None, amx=None):
 
     plt.draw()
 
-def plot_record_wigb(record_bin, out_png, nx, dt, dx, pml_thick, skip=4, gain=1.0, output_dt=0.001):
+def plot_record_wigb(record_bin, out_png, nx_total, dt, dx, pml_thick, field_type='full', skip=4, gain=1.0, output_dt=0.001):
+    """
+    绘制地震记录（支持不同分量）
+    nx_total: 该分量粗网格总点数（包含PML和halo）
+    field_type: 分量类型，用于裁剪时使用正确的halo
+    """
     rec = np.fromfile(record_bin, dtype=np.float32)
-    nt = rec.size // nx
-    if rec.size % nx != 0:
-        print_progress(f"警告: {record_bin} 数据大小不是 nx 的整数倍，丢弃多余数据")
-        rec = rec[:nt*nx]
-    rec_mat = rec.reshape((nt, nx))
+    nt = rec.size // nx_total
+    if rec.size % nx_total != 0:
+        print_progress(f"警告: {record_bin} 数据大小不是 nx_total={nx_total} 的整数倍，丢弃多余数据")
+        rec = rec[:nt*nx_total]
+    rec_mat = rec.reshape((nt, nx_total))
 
-    # 根据 CROP_PML_HALO 裁剪道
+    # 根据 CROP_PML_HALO 和场量类型裁剪道
     if CROP_PML_HALO:
-        left_cut = pml_thick + HALO['full']['left']
-        right_cut = pml_thick + HALO['full']['right']
+        halo_cfg = HALO[field_type]
+        left_cut = pml_thick + halo_cfg['left']
+        right_cut = pml_thick + halo_cfg['right']
         start_trace = left_cut
-        end_trace = nx - right_cut
+        end_trace = nx_total - right_cut
         if start_trace >= end_trace:
             print_progress("警告：裁剪后无有效道，跳过裁剪")
             start_trace = 0
-            end_trace = nx
+            end_trace = nx_total
         rec_mat = rec_mat[:, start_trace:end_trace]
-        print_progress(f"  裁剪道：保留 {start_trace} 到 {end_trace-1} (原 nx={nx})")
+        print_progress(f"  裁剪道：保留 {start_trace} 到 {end_trace-1} (原 nx_total={nx_total})")
     else:
         start_trace = 0
-        end_trace = nx
+        end_trace = nx_total
 
     # 时间降采样
     if output_dt <= 0:
@@ -393,9 +411,15 @@ def plot_record_wigb(record_bin, out_png, nx, dt, dx, pml_thick, skip=4, gain=1.
     x_coords = (start_trace + np.arange(n_trace_plot) * skip) * dx
     z_coords = np.arange(nt_new) * output_dt
 
+    # 根据 NORMALIZE_PER_TRACE 决定 amx 参数
+    if NORMALIZE_PER_TRACE:
+        amx = np.max(np.abs(rec_mat), axis=0)   # 每道最大值
+    else:
+        amx = None                               # 使用全局最大值
+
     fig, ax = plt.subplots(figsize=(30, 15))
     plt.sca(ax)
-    wigb(rec_mat, scal=gain, x=x_coords, z=z_coords)
+    wigb(rec_mat, scal=gain, x=x_coords, z=z_coords, amx=amx)
 
     os.makedirs(os.path.dirname(out_png), exist_ok=True)
     fig.savefig(out_png, dpi=300, bbox_inches='tight')
@@ -430,9 +454,12 @@ def main():
     else:
         fine_mode_str += " (不显示细网格)"
     print_progress(f"当前细网格设置: {fine_mode_str}")
-    print_progress("地震记录绘图: 使用正确 wigb（全局最大归一化）")
+    if NORMALIZE_PER_TRACE:
+        print_progress("地震记录归一化: 每道单独归一化")
+    else:
+        print_progress("地震记录归一化: 全局归一化（所有道共用同一个最大值）")
 
-    # 串行处理地震记录
+    # ---------- 处理地震记录（串行）----------
     record_tasks = []
     if os.path.exists(RECORD_DIR):
         for fname in sorted(os.listdir(RECORD_DIR)):
@@ -442,14 +469,31 @@ def main():
     if record_tasks:
         print_progress(f"\n开始串行处理地震记录，共 {len(record_tasks)} 个文件...")
         for idx, fname in enumerate(record_tasks, start=1):
-            print_progress(f"处理记录 [{idx}/{len(record_tasks)}]: {fname}")
+            # 根据文件名推断分量类型
+            if 'vx' in fname:
+                field_type = 'half_x'
+            elif 'vz' in fname:
+                field_type = 'half_z'
+            elif 'sx' in fname or 'sz' in fname:
+                field_type = 'full'
+            elif 'txz' in fname:
+                field_type = 'half_xy'
+            else:
+                field_type = 'full'   # 默认
+
+            # 计算该分量的粗网格总点数
+            nx_total, _, _, _, _ = get_coarse_dims_by_type(
+                modelinfo["coarse"]["nx"], modelinfo["coarse"]["nz"], pml_thick, field_type)
+            
+            print_progress(f"处理记录 [{idx}/{len(record_tasks)}]: {fname} (分量类型: {field_type})")
             plot_record_wigb(
                 os.path.join(RECORD_DIR, fname),
                 os.path.join(IMAGE_BASE, 'record', fname.replace('.bin', '.png')),
-                modelinfo["coarse"]["nx"],
+                nx_total,
                 paramsinfo["base"]["dt"],
                 modelinfo["coarse"]["dx"],
                 pml_thick,
+                field_type=field_type,
                 skip=5,
                 gain=1.0,
                 output_dt=0.001
@@ -458,7 +502,7 @@ def main():
     else:
         print_progress("未找到地震记录文件，跳过。")
 
-    # 并行处理波场快照
+    # ---------- 并行处理波场快照 ----------
     snapshot_tasks = []
     for fieldname in FIELD_NAMES:
         field_dir = os.path.join(OUTPUT_BASE, fieldname)

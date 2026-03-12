@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import sys
 import os
 
-def quick_save_int32_image(filename, rows=199, cols=199, cmap='viridis'):
+def quick_save_int32_image(filename, rows=151, cols=301, cmap='viridis'):
     """
     快速读取int32二进制文件并保存为图片
     """
@@ -13,7 +13,7 @@ def quick_save_int32_image(filename, rows=199, cols=199, cmap='viridis'):
             data = f.read()
         
         # 转换为矩阵
-        matrix = np.frombuffer(data, dtype=np.int32).reshape(rows, cols)
+        matrix = np.frombuffer(data, dtype=np.float32).reshape(rows, cols)
         for iz in range(rows):
             for ix in range(cols):
                 if matrix[iz, ix] == 0:

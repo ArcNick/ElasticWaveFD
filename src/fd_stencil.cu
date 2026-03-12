@@ -210,8 +210,8 @@ __device__ float samp_rho_z_coarse(float *f, int ix, int iz) {
 __device__ float samp_rho_x_fine(float *f, int ix, int iz, int zone) {
     float val1 = f[IdxSigFi(ix, iz, 0, zone)];
     float val2 = f[IdxSigFi(ix + 1, iz, 0, zone)];
-    if (tex1Dfetch<int>(mat_tex, IdxSigFi(ix, iz, 0, zone)) != tex1Dfetch<int>(mat_tex, IdxSigFi(ix + 1, iz, 0, zone))) {
-        return 1 / (1 / val1 + 1 / val2);
+    if (MAT(IdxSigFi(ix, iz, 0, zone)) != MAT(IdxSigFi(ix + 1, iz, 0, zone))) {
+        return 2 / (1 / val1 + 1 / val2);
     } else {
         return 0.5 * (val1 + val2);
     }
@@ -220,8 +220,8 @@ __device__ float samp_rho_x_fine(float *f, int ix, int iz, int zone) {
 __device__ float samp_rho_z_fine(float *f, int ix, int iz, int zone) {
     float val1 = f[IdxSigFi(ix, iz, 0, zone)];
     float val2 = f[IdxSigFi(ix, iz + 1, 0, zone)];
-    if (tex1Dfetch<int>(mat_tex, IdxSigFi(ix, iz, 0, zone)) != tex1Dfetch<int>(mat_tex, IdxSigFi(ix, iz + 1, 0, zone))) {
-        return 1 / (1 / val1 + 1 / val2);
+    if (MAT(IdxSigFi(ix, iz, 0, zone)) != MAT(IdxSigFi(ix, iz + 1, 0, zone))) {
+        return 2 / (1 / val1 + 1 / val2);
     } else {
         return 0.5 * (val1 + val2);
     }
@@ -324,7 +324,7 @@ __device__ float samp_C55_fine(float *f, int ix, int iz, int zone) {
 __device__ float samp_vx_z(
     float *f, float ix_global, float iz_global
 ) {
-    int ix = int(ix_global + 1e-5f);
+    int ix = int(ix_global);
     ix = max(0, min(ix, nx - 2));
 
     int iz0 = int(iz_global);

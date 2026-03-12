@@ -16,13 +16,13 @@ dz = 1.0
 fpeak = 30.0
 dt = 2e-5
 nt = 64000
-snapshot = 800
+snapshot = 1000
 
 # 介质参数（均匀介质）
 # 固体区域
-rho_solid = 2000.0
-vp_solid = 3000.0
-vs_solid = 1500.0
+rho_solid = 2300.0
+vp_solid = 4000.0
+vs_solid = 2100.0
 C11_solid = rho_solid * vp_solid**2
 C55_solid = rho_solid * vs_solid**2
 C13_solid = C11_solid - 2 * C55_solid
@@ -45,7 +45,7 @@ tau = 1 / Qp * (1 + 1 / Qp**2)**0.5
 fine_regions = [
     {
         "x_start": 200, "x_end": 300,
-        "z_start": 350, "z_end": 400,
+        "z_start": 250, "z_end": 300,
         "N": 3
     }
 ]
@@ -55,7 +55,7 @@ posx = nx // 2
 posz = nz // 4
 
 # CPML参数
-cpml_thickness = 10
+cpml_thickness = 15
 cpml_N = 3
 cp_max = vp_solid
 Rc = 0.001
@@ -80,13 +80,13 @@ coarse_inv_taus = np.full((nz, nx), 0, dtype=np.float32)
 
 # 标记流体区域
 # coarse_MAT[300:400, 200:300] = FLUID
-coarse_rho[coarse_MAT == FLUID] = rho_fluid
-coarse_C11[coarse_MAT == FLUID] = C11_fluid
-coarse_C13[coarse_MAT == FLUID] = C13_fluid
-coarse_C33[coarse_MAT == FLUID] = C33_fluid
-coarse_C55[coarse_MAT == FLUID] = C55_fluid
-coarse_tau[coarse_MAT == FLUID] = tau
-coarse_inv_taus[coarse_MAT == FLUID] = inv_ts
+# coarse_rho[coarse_MAT == FLUID] = rho_fluid
+# coarse_C11[coarse_MAT == FLUID] = C11_fluid
+# coarse_C13[coarse_MAT == FLUID] = C13_fluid
+# coarse_C33[coarse_MAT == FLUID] = C33_fluid
+# coarse_C55[coarse_MAT == FLUID] = C55_fluid
+# coarse_tau[coarse_MAT == FLUID] = tau
+# coarse_inv_taus[coarse_MAT == FLUID] = inv_ts
 
 coarse_MAT.tofile(os.path.join(coarse_dir, "material.bin"))
 coarse_rho.tofile(os.path.join(coarse_dir, "rho.bin"))
@@ -114,23 +114,23 @@ for idx, region in enumerate(fine_regions):
     os.makedirs(region_dir, exist_ok=True)
     
     # 细网格模型（均匀介质，与粗网格相同）
-    fine_rho = np.full((lenz, lenx), rho_fluid, dtype=np.float32)
-    fine_C11 = np.full((lenz, lenx), C11_fluid, dtype=np.float32)
-    fine_C13 = np.full((lenz, lenx), C13_fluid, dtype=np.float32)
-    fine_C33 = np.full((lenz, lenx), C33_fluid, dtype=np.float32)
-    fine_C55 = np.full((lenz, lenx), C55_fluid, dtype=np.float32)
+    fine_rho = np.full((lenz, lenx), rho_solid, dtype=np.float32)
+    fine_C11 = np.full((lenz, lenx), C11_solid, dtype=np.float32)
+    fine_C13 = np.full((lenz, lenx), C13_solid, dtype=np.float32)
+    fine_C33 = np.full((lenz, lenx), C33_solid, dtype=np.float32)
+    fine_C55 = np.full((lenz, lenx), C55_solid, dtype=np.float32)
     fine_tau = np.full((lenz, lenx), 0, dtype=np.float32)
     fine_inv_taus = np.full((lenz, lenx), 0, dtype=np.float32)
     fine_MAT = np.full((lenz, lenx), SOLID, dtype=np.int32)
 
-    fine_MAT[5 : 130 : 7, 5 : 130] = FLUID
-    fine_rho[fine_MAT == FLUID] = rho_fluid
-    fine_C11[fine_MAT == FLUID] = C11_fluid
-    fine_C13[fine_MAT == FLUID] = C13_fluid
-    fine_C33[fine_MAT == FLUID] = C33_fluid
-    fine_C55[fine_MAT == FLUID] = C55_fluid
-    fine_tau[fine_MAT == FLUID] = tau
-    fine_inv_taus[fine_MAT == FLUID] = inv_ts
+    # fine_MAT[5 : 130 : 7, 5 : 130] = FLUID
+    # fine_rho[fine_MAT == FLUID] = rho_fluid
+    # fine_C11[fine_MAT == FLUID] = C11_fluid
+    # fine_C13[fine_MAT == FLUID] = C13_fluid
+    # fine_C33[fine_MAT == FLUID] = C33_fluid
+    # fine_C55[fine_MAT == FLUID] = C55_fluid
+    # fine_tau[fine_MAT == FLUID] = tau
+    # fine_inv_taus[fine_MAT == FLUID] = inv_ts
     
     # 保存文件
     fine_rho.tofile(os.path.join(region_dir, "rho.bin"))
@@ -153,7 +153,10 @@ for idx, region in enumerate(fine_regions):
         "C11": f"models/fine/{idx}/C11.bin",
         "C13": f"models/fine/{idx}/C13.bin",
         "C33": f"models/fine/{idx}/C33.bin",
-        "C55": f"models/fine/{idx}/C55.bin"
+        "C55": f"models/fine/{idx}/C55.bin",
+        "tau": f"models/fine/{idx}/tau.bin",
+        "inv_taus": f"models/fine/{idx}/inv_tau_sigma.bin",
+        "material": f"models/fine/{idx}/material.bin"
     })
 
 # ========== 生成 models.json ==========

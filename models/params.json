@@ -5,12 +5,12 @@
     "nt": 64000,
     "posx": 250,
     "posz": 125,
-    "snapshot": 800
+    "snapshot": 1000
   },
   "cpml": {
-    "thickness": 10,
+    "thickness": 15,
     "N": 3,
-    "cp_max": 3000.0,
+    "cp_max": 4000.0,
     "Rc": 0.001,
     "kappa0": 1.0
   }

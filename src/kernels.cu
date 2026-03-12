@@ -4,8 +4,6 @@
 extern __constant__ int posx_d, posz_d;
 extern __constant__ float dt_d;
 
-#define MAT(idx) tex1Dfetch<int>(mat_tex, (idx))
-
 __device__ int get_cpml_idx_x_int(int ix) {
     if (ix - 3 >= 0 && ix - 3 < thickness_d) {
         return thickness_d - ix + 2;

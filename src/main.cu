@@ -3,16 +3,18 @@
 #include <filesystem>
 #include "kernels.cuh"
 #include "params.cuh"
+#include "fd_stencil.cuh"
 
 namespace fs = std::filesystem;
 
-float buffer[2048];
+float buffer1[2048];
+float buffer2[2048];
 
 void output_snapshots(GridManager &gm, int it, float dt, int time);
-void output_record(const GridManager &gm, int z, FILE *fp, int time);
+void output_record(const GridManager &gm, int z, FILE *fp1, FILE *fp2, int time);
 bool clear_folder(const fs::path& dir);
 
-__global__ void debug_kernel(Core core, int it, int time) {
+__global__ void debug_kernel(Model model, int it, int time) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -82,6 +84,9 @@ __global__ void debug_kernel(Core core, int it, int time) {
     // //     */
 
     // //     printf("========== End of Dump ==========\n");
+    printf("%f\n", __ldg((float *)(0x5088f51e8)));
+    printf("%f\n", model.rho[IdxSigFi(1, 0, 0, 0)]);
+    printf("%p\n", model.rho + IdxSigFi(1, 0, 0, 0));
 }
 
 
@@ -108,8 +113,9 @@ int main() {
     system("mkdir -p ./output/sz");
     system("mkdir -p ./output/txz");
 
-    FILE *fp = fopen("output/record/record_vz.bin", "wb");
-    if (!fp) {
+    FILE *fp1 = fopen("output/record/record_vz.bin", "wb");
+    FILE *fp2 = fopen("output/record/record_vx.bin", "wb");
+    if (!fp1 || !fp2) {
         std::cerr << "Failed to open output file for recording." << std::endl;
         return -1;
     }
@@ -146,7 +152,7 @@ int main() {
             cudaStreamSynchronize(stream_fi[i]);
         }
 
-        output_record(gm, params.posz, fp, cur);
+        output_record(gm, params.posz, fp1, fp2, cur);
 
         if (it % params.snapshot == 0) {
             output_snapshots(gm, it, params.dt, cur);
@@ -156,7 +162,8 @@ int main() {
     }
     
     printf("finished 100.00%%\n");
-    fclose(fp);
+    fclose(fp1);
+    fclose(fp2);
     cudaStreamDestroy(stream_co);
     for (int i = 0; i < gm.fine_info.size(); ++i) {
         cudaStreamDestroy(stream_fi[i]);
@@ -205,14 +212,21 @@ void output_snapshots(GridManager &gm, int it, float dt, int time) {
     fclose(fp_txz);
 }
 
-void output_record(const GridManager &gm, int z, FILE *fp, int time) {
+void output_record(const GridManager &gm, int z, FILE *fp1, FILE *fp2, int time) {
     cudaMemcpy(
-        buffer, 
+        buffer1, 
+        gm.core_d.vx + time * gm.offset_time_vx + z * (gm.nx_coarse - 1), 
+        sizeof(float) * (gm.nx_coarse - 1), 
+        cudaMemcpyDeviceToHost
+    );
+    cudaMemcpy(
+        buffer2, 
         gm.core_d.vz + time * gm.offset_time_vz + z * (gm.nx_coarse), 
         sizeof(float) * (gm.nx_coarse), 
         cudaMemcpyDeviceToHost
     );
-    fwrite(buffer, sizeof(float), gm.nx_coarse, fp);
+    fwrite(buffer1, sizeof(float), gm.nx_coarse - 1, fp1);
+    fwrite(buffer2, sizeof(float), gm.nx_coarse, fp2);
 }
 
 bool clear_folder(const fs::path& dir) {
