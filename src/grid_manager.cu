@@ -101,16 +101,15 @@ void GridManager::load_from_file(const std::string &file) {
     memory_allocate();
 
     // 读取模型参数文件
-    struct Pair { void *ptr; std::string name; } dst[7] = {
+    struct Pair { float *ptr; std::string name; } dst[5] = {
         { model_h.rho, "rho" }, { model_h.C11, "C11" }, { model_h.C13, "C13" },
-        { model_h.C33, "C33" }, { model_h.C55, "C55" }, { model_h.Qp, "Qp"}, 
-        { model_h.mat, "material"}
+        { model_h.C33, "C33" }, { model_h.C55, "C55" }
     };
     std::string filename;
 
     cJSON *item = nullptr;
     // coarse
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 5; i++) {
         item = coarse_ptr;
         item = cJSON_GetObjectItem(item, dst[i].name.c_str());
         filename = item->valuestring;
@@ -125,7 +124,7 @@ void GridManager::load_from_file(const std::string &file) {
 
     // fine
     for (int i = 0, offset = nx_coarse * nz_coarse; i < num; i++, offset += fine_info[i].lenx * fine_info[i].lenz) {
-        for (int j = 0; j < 7; j++) {
+        for (int j = 0; j < 5; j++) {
             item = fine_ptr;
             item = cJSON_GetArrayItem(item, i);
             item = cJSON_GetObjectItem(item, dst[j].name.c_str());

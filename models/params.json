@@ -2,9 +2,9 @@
   "base": {
     "fpeak": 30.0,
     "dt": 1e-05,
-    "nt": 32000,
+    "nt": 64000,
     "posx": 250,
-    "posz": 250,
+    "posz": 125,
     "snapshot": 1000
   },
   "cpml": {
