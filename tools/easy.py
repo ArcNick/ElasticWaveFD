@@ -14,9 +14,9 @@ dz = 1.0
 
 # 时间参数
 fpeak = 30.0
-dt = 5e-5
-nt = 10000
-snapshot = 200
+dt = 2e-5
+nt = 64000
+snapshot = 1000
 
 # 介质参数（均匀介质）
 # 固体区域
@@ -31,7 +31,7 @@ C33_solid = C11_solid
 # 流体区
 rho_fluid = 1000.0
 vp_fluid = 1400.0
-vs_fluid = 0
+vs_fluid = 0.0
 C11_fluid = rho_fluid * vp_fluid**2
 C55_fluid = rho_fluid * vs_fluid**2
 C13_fluid = C11_fluid - 2 * C55_fluid
@@ -43,23 +43,23 @@ tau = 1 / Qp * (1 + 1 / Qp**2)**0.5
 
 # 细网格区域（粗网格坐标）
 fine_regions = [
-    # {
-    #     "x_start": 200, "x_end": 300,
-    #     "z_start": 300, "z_end": 400,
-    #     "N": 3
-    # }
+    {
+        "x_start": 200, "x_end": 300,
+        "z_start": 250, "z_end": 300,
+        "N": 3
+    }
 ]
 
 # 震源位置
 posx = nx // 2
-posz = 40
+posz = nz // 4
 
 # CPML参数
-cpml_thickness = 20
+cpml_thickness = 15
 cpml_N = 3
 cp_max = vp_solid
-Rc = 0.0001
-kappa0 = 1.2
+Rc = 0.001
+kappa0 = 1.0
 
 # ========== 创建目录结构 ==========
 base_dir = "models"
@@ -123,33 +123,14 @@ for idx, region in enumerate(fine_regions):
     fine_inv_taus = np.full((lenz, lenx), 0, dtype=np.float32)
     fine_MAT = np.full((lenz, lenx), SOLID, dtype=np.int32)
 
-    # fine_MAT[200 : 800 : 40, 200 : 800] = FLUID
-    # fine_MAT[201 : 800 : 40, 200 : 800] = FLUID
-    # fine_MAT[202 : 800 : 40, 200 : 800] = FLUID
-    # fine_MAT[203 : 800 : 40, 200 : 800] = FLUID
-    # fine_MAT[204 : 800 : 40, 200 : 800] = FLUID
-    # fine_MAT[205 : 800 : 40, 200 : 800] = FLUID
-    # fine_MAT[206 : 800 : 40, 200 : 800] = FLUID
-    # fine_MAT[207 : 800 : 40, 200 : 800] = FLUID
-    # fine_MAT[208 : 800 : 40, 200 : 800] = FLUID
-    # fine_MAT[209 : 800 : 40, 200 : 800] = FLUID
-    fine_rho[fine_MAT == FLUID] = rho_fluid
-    fine_C11[fine_MAT == FLUID] = C11_fluid
-    fine_C13[fine_MAT == FLUID] = C13_fluid
-    fine_C33[fine_MAT == FLUID] = C33_fluid
-    fine_C55[fine_MAT == FLUID] = C55_fluid
-    fine_tau[fine_MAT == FLUID] = tau
-    fine_inv_taus[fine_MAT == FLUID] = inv_ts
-    # fine_MAT[200 : 800 : 40, 200 : 800] = SOLID
-    # fine_MAT[201 : 800 : 40, 200 : 800] = SOLID
-    # fine_MAT[202 : 800 : 40, 200 : 800] = SOLID
-    # fine_MAT[203 : 800 : 40, 200 : 800] = SOLID
-    # fine_MAT[204 : 800 : 40, 200 : 800] = SOLID
-    # fine_MAT[205 : 800 : 40, 200 : 800] = SOLID
-    # fine_MAT[206 : 800 : 40, 200 : 800] = SOLID
-    # fine_MAT[207 : 800 : 40, 200 : 800] = SOLID
-    # fine_MAT[208 : 800 : 40, 200 : 800] = SOLID
-    # fine_MAT[209 : 800 : 40, 200 : 800] = SOLID
+    # fine_MAT[5 : 130 : 7, 5 : 130] = FLUID
+    # fine_rho[fine_MAT == FLUID] = rho_fluid
+    # fine_C11[fine_MAT == FLUID] = C11_fluid
+    # fine_C13[fine_MAT == FLUID] = C13_fluid
+    # fine_C33[fine_MAT == FLUID] = C33_fluid
+    # fine_C55[fine_MAT == FLUID] = C55_fluid
+    # fine_tau[fine_MAT == FLUID] = tau
+    # fine_inv_taus[fine_MAT == FLUID] = inv_ts
     
     # 保存文件
     fine_rho.tofile(os.path.join(region_dir, "rho.bin"))

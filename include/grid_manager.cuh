@@ -68,8 +68,13 @@ public:
     int offset_time_sig;
     int offset_time_txz;
 
+    int offset_coarse_vx;
+    int offset_coarse_vz;
+    int offset_coarse_sig;
+    int offset_coarse_txz;
+
     Mask core_mask;
-    Core core_h, core_d;
+    Core core_h, core_d, core_temp;
     Model model_h, model_d;
 
     FD_n *vx_n, *vz_n, *sig_n, *txz_n;
@@ -78,9 +83,6 @@ public:
 
     GridManager(const std::string &file);
     ~GridManager();
-
-    Core get_core();
-    Model get_model();
 
     void memcpy_model_h2d();
     void memcpy_core_d2h(int time);

@@ -17,8 +17,8 @@
     {
       "x_start": 200,
       "x_end": 300,
-      "z_start": 250,
-      "z_end": 300,
+      "z_start": 280,
+      "z_end": 380,
       "N": 3,
       "rho": "models/fine/0/rho.bin",
       "C11": "models/fine/0/C11.bin",

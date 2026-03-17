@@ -324,7 +324,7 @@ __device__ float samp_C55_fine(float *f, int ix, int iz, int zone) {
 __device__ float samp_vx_z(
     float *f, float ix_global, float iz_global
 ) {
-    int ix = int(ix_global);
+    int ix = int(ix_global - 0.5f + 1e-5f);   // 修正：减去 0.5
     ix = max(0, min(ix, nx - 2));
 
     int iz0 = int(iz_global);

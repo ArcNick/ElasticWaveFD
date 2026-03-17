@@ -7,87 +7,45 @@
 
 namespace fs = std::filesystem;
 
-float buffer1[2048];
-float buffer2[2048];
+float buffer[2048];
 
+class StreamManager {
+public:
+    cudaStream_t stream_vx, stream_vz;
+    cudaStream_t stream_sx, stream_sz, stream_txz, stream_p;
+    cudaStream_t stream_r;
+    StreamManager() {
+        cudaStreamCreate(&stream_vx);
+        cudaStreamCreate(&stream_vz);
+        cudaStreamCreate(&stream_sx);
+        cudaStreamCreate(&stream_sz);
+        cudaStreamCreate(&stream_txz);
+        cudaStreamCreate(&stream_p);
+        cudaStreamCreate(&stream_r);
+    }
+    ~StreamManager() {
+        cudaStreamDestroy(stream_vx);
+        cudaStreamDestroy(stream_vz);
+        cudaStreamDestroy(stream_sx);
+        cudaStreamDestroy(stream_sz);
+        cudaStreamDestroy(stream_p);
+        cudaStreamDestroy(stream_r);
+        cudaStreamDestroy(stream_txz);
+    }
+};
+
+void smooth_fine(GridManager &gm, StreamManager &stream_manager, int time);
 void output_snapshots(GridManager &gm, int it, float dt, int time);
-void output_record(const GridManager &gm, int z, FILE *fp1, FILE *fp2, int time);
+void output_record(const GridManager &gm, int z, FILE *fp_vz, int time);
 bool clear_folder(const fs::path& dir);
 
-__global__ void debug_kernel(Model model, int it, int time) {
-    int ix = blockIdx.x * blockDim.x + threadIdx.x;
-    int iz = blockIdx.y * blockDim.y + threadIdx.y;
-
-    // printf("sx(%d, %d)=%f, it=%d\n", 125, 125, f[125 * 500 + 125 + time * offset_sx_all], it);
-    // printf("sx(%d, %d)=%f, it=%d\n", 125, 126, f[126 * 500 + 125 + time * offset_sx_all], it);
-    // printf("sx(%d, %d)=%f, it=%d\n", 126, 125, f[125 * 500 + 126 + time * offset_sx_all], it);
-    // printf("sx(%d, %d)=%f, it=%d\n", 124, 125, f[125 * 500 + 124 + time * offset_sx_all], it);
-    // printf("sx(%d, %d)=%f, it=%d\n", 125, 124, f[124 * 500 + 125 + time * offset_sx_all], it);
-    // if (ix == 0 && iz == 0) {
-    //     printf("\n========== Constant Memory Dump ==========\n");
-
-    //     // 基本网格参数
-    //     printf("dx = %f, dz = %f\n", dx, dz);
-    //     printf("nx = %d, nz = %d\n", nx, nz);
-
-    //     // 各场的时间层偏移量
-    //     printf("offset_vx_all = %d\n", offset_vx_all);
-    //     printf("offset_vz_all = %d\n", offset_vz_all);
-    //     printf("offset_sx_all = %d\n", offset_sx_all);
-    //     printf("offset_sz_all = %d\n", offset_sz_all);
-    //     printf("offset_txz_all = %d\n", offset_txz_all);
-
-    //     // 震源位置和时间步长
-    //     printf("posx_d = %d, posz_d = %d\n", posx_d, posz_d);
-    //     printf("dt_d = %f, nt_d = %d\n", dt_d, nt_d);
-
-    //     // CPML 参数
-    //     printf("thickness_d = %d\n", thickness_d);
-    //     for (int i = 0; i < thickness_d; i++) {
-    //         printf("a_int_d[%d] = %e, b_int_d[%d] = %e, kappa_int_d[%d] = %f\n",
-    //                i, a_int_d[i], i, b_int_d[i], i, kappa_int_d[i]);
-    //     }
-    //     for (int i = 0; i < thickness_d - 1; i++) {
-    //         printf("a_half_d[%d] = %e, b_half_d[%d] = %e, kappa_half_d[%d] = %f\n",
-    //                i, a_half_d[i], i, b_half_d[i], i, kappa_half_d[i]);
-    //     }
-
-    //     // 细网格信息
-    //     printf("num_fine = %d\n", num_fine);
-    //     for (int i = 0; i < num_fine; i++) {
-    //         printf("fines[%d]: x_start=%d, x_end=%d, z_start=%d, z_end=%d, lenx=%d, lenz=%d, N=%d, dx_fine=%f, dz_fine=%f\n",
-    //                i,
-    //                fines[i].x_start,
-    //                fines[i].x_end,
-    //                fines[i].z_start,
-    //                fines[i].z_end,
-    //                fines[i].lenx,
-    //                fines[i].lenz,
-    //                fines[i].N,
-    //                fines[i].dx_fine,
-    //                fines[i].dz_fine);
-    //     }
-
-    //     // 细网格在总数组中的起始偏移
-    //     for (int i = 0; i < num_fine; i++) {
-    //         printf("sum_offset_fine_vx[%d] = %d\n", i, sum_offset_fine_vx[i]);
-    //         printf("sum_offset_fine_vz[%d] = %d\n", i, sum_offset_fine_vz[i]);
-    //         printf("sum_offset_fine_sx[%d] = %d\n", i, sum_offset_fine_sx[i]);
-    //         printf("sum_offset_fine_sz[%d] = %d\n", i, sum_offset_fine_sz[i]);
-    //         printf("sum_offset_fine_txz[%d] = %d\n", i, sum_offset_fine_txz[i]);
-    //     }
-
-    // //     /*
-    // //     for (int i = 0; i < LUT_SIZE * LAGRANGE_ORDER; i++) {
-    // //         printf("lagrange_coeff[%d] = %f\n", i, lagrange_coeff[i]);
-    // //     }
-    // //     */
-
-    // //     printf("========== End of Dump ==========\n");
-    printf("%f\n", __ldg((float *)(0x5088f51e8)));
-    printf("%f\n", model.rho[IdxSigFi(1, 0, 0, 0)]);
-    printf("%p\n", model.rho + IdxSigFi(1, 0, 0, 0));
-}
+// __global__ void debug_kernel(Model model, int it, int time) {
+//     int ix = blockIdx.x * blockDim.x + threadIdx.x;
+//     int iz = blockIdx.y * blockDim.y + threadIdx.y;
+//     printf("%f\n", __ldg((float *)(0x5088f51e8)));
+//     printf("%f\n", model.rho[IdxSigFi(1, 0, 0, 0)]);
+//     printf("%p\n", model.rho + IdxSigFi(1, 0, 0, 0));
+// }
 
 
 int main() {
@@ -104,6 +62,7 @@ int main() {
     for (int i = 0; i < gm.fine_info.size(); ++i) {
         cudaStreamCreate(&stream_fi[i]);
     }
+    StreamManager stream_manager;
 
     clear_folder("./output");
     system("mkdir -p ./output/record");
@@ -113,9 +72,8 @@ int main() {
     system("mkdir -p ./output/sz");
     system("mkdir -p ./output/txz");
 
-    FILE *fp1 = fopen("output/record/record_vz.bin", "wb");
-    FILE *fp2 = fopen("output/record/record_vx.bin", "wb");
-    if (!fp1 || !fp2) {
+    FILE *fp_record_vz = fopen("output/record/record_vz.bin", "wb");
+    if (!fp_record_vz) {
         std::cerr << "Failed to open output file for recording." << std::endl;
         return -1;
     }
@@ -143,7 +101,6 @@ int main() {
         for (int i = 0; i < gm.fine_info.size(); i++) {
             dim3 grid_fi((gm.fine_info[i].lenx + 15) / 16, (gm.fine_info[i].lenz + 15) / 16);
             dim3 block_fi(16, 16);
-
             update_velocity_fine<<<grid_fi, block_fi, 0, stream_fi[i]>>>(gm.core_d, gm.model_d, cur, i);
         }
 
@@ -152,7 +109,10 @@ int main() {
             cudaStreamSynchronize(stream_fi[i]);
         }
 
-        output_record(gm, params.posz, fp1, fp2, cur);
+        output_record(gm, params.posz, fp_record_vz, cur);
+        if (it % 100 == 0) {
+            smooth_fine(gm, stream_manager, cur);
+        }
 
         if (it % params.snapshot == 0) {
             output_snapshots(gm, it, params.dt, cur);
@@ -162,19 +122,54 @@ int main() {
     }
     
     printf("finished 100.00%%\n");
-    fclose(fp1);
-    fclose(fp2);
+    fclose(fp_record_vz);
     cudaStreamDestroy(stream_co);
     for (int i = 0; i < gm.fine_info.size(); ++i) {
         cudaStreamDestroy(stream_fi[i]);
     }
+    return 0;
+}
+
+void smooth_fine(GridManager &gm, StreamManager &sm, int time) {
+    if (gm.fine_info.size() == 0) return;
+    dim3 block(16, 16);
+    for (int i = 0; i < gm.fine_info.size(); i++) {
+        dim3 grid_fi((gm.fine_info[i].lenx + 15) / 16, (gm.fine_info[i].lenz + 15) / 16);
+        smooth_fine_sx<2><<<grid_fi, block, 0, sm.stream_sx>>>(gm.core_d.sx, gm.core_temp.sx, time, i);
+        smooth_fine_vx<2><<<grid_fi, block, 0, sm.stream_vx>>>(gm.core_d.vx, gm.core_temp.vx, time, i);
+        smooth_fine_vz<2><<<grid_fi, block, 0, sm.stream_vz>>>(gm.core_d.vz, gm.core_temp.vz, time, i);
+        smooth_fine_sz<2><<<grid_fi, block, 0, sm.stream_sz>>>(gm.core_d.sz, gm.core_temp.sz, time, i);
+        smooth_fine_p<2><<<grid_fi, block, 0, sm.stream_p>>>(gm.core_d.p, gm.core_temp.p, time, i);
+        smooth_fine_rp<2><<<grid_fi, block, 0, sm.stream_r>>>(gm.core_d.r, gm.core_temp.r, time, i);
+        smooth_fine_txz<2><<<grid_fi, block, 0, sm.stream_txz>>>(gm.core_d.txz, gm.core_temp.txz, time, i);
+    }
+
+    int bytes_vx = (gm.offset_time_vx - gm.offset_coarse_vx) * sizeof(float);
+    int bytes_vz = (gm.offset_time_vz - gm.offset_coarse_vz) * sizeof(float);
+    int bytes_sig = (gm.offset_time_sig - gm.offset_coarse_sig) * sizeof(float);
+    int bytes_txz = (gm.offset_time_txz - gm.offset_coarse_txz) * sizeof(float);
+    cudaMemcpyAsync(gm.core_d.vx + time * bytes_vx + gm.offset_coarse_vx, gm.core_temp.vx, bytes_vx, cudaMemcpyDeviceToDevice, sm.stream_vx);
+    cudaMemcpyAsync(gm.core_d.vz + time * bytes_vz + gm.offset_coarse_vz, gm.core_temp.vz, bytes_vz, cudaMemcpyDeviceToDevice, sm.stream_vz);
+    cudaMemcpyAsync(gm.core_d.sx + time * bytes_sig + gm.offset_coarse_sig, gm.core_temp.sx, bytes_sig, cudaMemcpyDeviceToDevice, sm.stream_sx);
+    cudaMemcpyAsync(gm.core_d.sz + time * bytes_sig + gm.offset_coarse_sig, gm.core_temp.sz, bytes_sig, cudaMemcpyDeviceToDevice, sm.stream_sz);
+    cudaMemcpyAsync(gm.core_d.txz + time * bytes_txz + gm.offset_coarse_txz, gm.core_temp.txz, bytes_txz, cudaMemcpyDeviceToDevice, sm.stream_txz);
+    cudaMemcpyAsync(gm.core_d.r + time * bytes_sig + gm.offset_coarse_sig, gm.core_temp.r, bytes_sig, cudaMemcpyDeviceToDevice, sm.stream_r);
+    cudaMemcpyAsync(gm.core_d.p + time * bytes_sig + gm.offset_coarse_sig, gm.core_temp.p, bytes_sig, cudaMemcpyDeviceToDevice, sm.stream_p);
+
+    cudaStreamSynchronize(sm.stream_vx);
+    cudaStreamSynchronize(sm.stream_vz);
+    cudaStreamSynchronize(sm.stream_sx);
+    cudaStreamSynchronize(sm.stream_sz);
+    cudaStreamSynchronize(sm.stream_txz);
+    cudaStreamSynchronize(sm.stream_r);
+    cudaStreamSynchronize(sm.stream_p);
 }
 
 void output_snapshots(GridManager &gm, int it, float dt, int time) {
     float time_sec = it * dt;
     int time_ms = static_cast<int>(time_sec * 1000);
     
-    char buf[32];
+    static char buf[32];
 
     snprintf(buf, sizeof(buf), "output/vx/vx_%05dms.bin", time_ms);
     std::string filename_vx = buf;
@@ -212,21 +207,14 @@ void output_snapshots(GridManager &gm, int it, float dt, int time) {
     fclose(fp_txz);
 }
 
-void output_record(const GridManager &gm, int z, FILE *fp1, FILE *fp2, int time) {
+void output_record(const GridManager &gm, int z, FILE *fp_vz, int time) {
     cudaMemcpy(
-        buffer1, 
-        gm.core_d.vx + time * gm.offset_time_vx + z * (gm.nx_coarse - 1), 
-        sizeof(float) * (gm.nx_coarse - 1), 
+        buffer, 
+        gm.core_d.vz + time * gm.offset_time_vz + z * gm.nx_coarse, 
+        sizeof(float) * gm.nx_coarse, 
         cudaMemcpyDeviceToHost
     );
-    cudaMemcpy(
-        buffer2, 
-        gm.core_d.vz + time * gm.offset_time_vz + z * (gm.nx_coarse), 
-        sizeof(float) * (gm.nx_coarse), 
-        cudaMemcpyDeviceToHost
-    );
-    fwrite(buffer1, sizeof(float), gm.nx_coarse - 1, fp1);
-    fwrite(buffer2, sizeof(float), gm.nx_coarse, fp2);
+    fwrite(buffer, sizeof(float), gm.nx_coarse, fp_vz);
 }
 
 bool clear_folder(const fs::path& dir) {

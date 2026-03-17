@@ -4,6 +4,14 @@
 extern __constant__ int posx_d, posz_d;
 extern __constant__ float dt_d;
 
+__constant__ float coeff[5][3] = {
+    {0, 0, 0},
+    {0.95, 0.01, 0.0025},
+    {0.9, 0.02, 0.005},
+    {0.8, 0.04, 0.010},
+    {0.5, 0.125, 0}
+};
+
 __device__ int get_cpml_idx_x_int(int ix) {
     if (ix - 3 >= 0 && ix - 3 < thickness_d) {
         return thickness_d - ix + 2;
@@ -199,8 +207,8 @@ __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, i
         // 1. 固体内部以及流固边界，使用txz的导数
         // 2. 流体内部，不使用txz的导数
         if (iz > 3 &&
-            (MAT(iz * nx + ix) == SOLID && MAT(iz * nx + ix + 1) == SOLID) || // 1. 固体内部
-            MAT(iz * nx + ix) != MAT(iz * nx + ix + 1)) {                     // 2. 流固边界
+            ((MAT(iz * nx + ix) == SOLID && MAT(iz * nx + ix + 1) == SOLID) || // 1. 固体内部
+            MAT(iz * nx + ix) != MAT(iz * nx + ix + 1))) {                     // 2. 流固边界
             dtxz_dz = dtxz_dz_coarse(core.txz, ix, iz, cur);
         }
 
@@ -233,8 +241,8 @@ __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, i
         float dsz_dz = dsz_dz_coarse(core.sz, ix, iz, cur);
         float dtxz_dx = 0;                                      // HALO 或者流体内部默认为0
         if (ix > 3 && 
-            (MAT(iz * nx + ix) == SOLID && MAT((iz + 1) * nx + ix) == SOLID) || // 1. 固体内部
-            MAT(iz * nx + ix) != MAT((iz + 1) * nx + ix)) {                     // 2. 流固边界
+            ((MAT(iz * nx + ix) == SOLID && MAT((iz + 1) * nx + ix) == SOLID) || // 1. 固体内部
+            MAT(iz * nx + ix) != MAT((iz + 1) * nx + ix))) {                     // 2. 流固边界
             dtxz_dx = dtxz_dx_coarse(core.txz, ix, iz, cur);
         }
 
@@ -345,8 +353,8 @@ __global__ void update_velocity_fine(Core core, Model model, int cur, int zone) 
     float dtxz_dz = 0;
     
     if (ix < fines[zone].lenx - 1) {
-        if ((MAT(IdxSigFi(ix, iz, 0, zone)) == SOLID && MAT(IdxSigFi(ix + 1, iz, 0, zone) == SOLID)) || 
-            MAT(IdxSigFi(ix, iz, 0, zone) != MAT(IdxSigFi(ix + 1, iz, 0, zone)))) {
+        if ((MAT(IdxSigFi(ix, iz, 0, zone)) == SOLID && MAT(IdxSigFi(ix + 1, iz, 0, zone)) == SOLID) || 
+            MAT(IdxSigFi(ix, iz, 0, zone)) != MAT(IdxSigFi(ix + 1, iz, 0, zone))) {
             dtxz_dz = dtxz_dz_8th(core.txz, ix, iz, cur, zone);
         } 
         dsx_dx = dsx_dx_8th(core.sx, ix, iz, cur, zone);
@@ -357,7 +365,7 @@ __global__ void update_velocity_fine(Core core, Model model, int cur, int zone) 
 
     if (iz < fines[zone].lenz - 1) {
         if ((MAT(IdxSigFi(ix, iz, 0, zone)) == SOLID && MAT(IdxSigFi(ix, iz + 1, 0, zone)) == SOLID) || 
-            MAT(IdxSigFi(ix, iz, 0, zone) != MAT(IdxSigFi(ix, iz + 1, 0, zone)))) {
+            MAT(IdxSigFi(ix, iz, 0, zone)) != MAT(IdxSigFi(ix, iz + 1, 0, zone))) {
             dtxz_dx = dtxz_dx_8th(core.txz, ix, iz, cur, zone);
         } 
         dsz_dz = dsz_dz_8th(core.sz, ix, iz, cur, zone);
@@ -366,6 +374,262 @@ __global__ void update_velocity_fine(Core core, Model model, int cur, int zone) 
         );
     }
 }
+
+// __global__ void smooth_fine_lv1(Core core, Core temp, int cur, int zone) {
+//     int ix = blockIdx.x * blockDim.x + threadIdx.x;
+//     int iz = blockIdx.y * blockDim.y + threadIdx.y;
+
+//     if (ix >= fines[zone].lenx || iz >= fines[zone].lenz) {
+//         return;
+//     }
+
+//     if (0 < ix && ix < fines[zone].lenx - 2 && 0 < iz && iz < fines[zone].lenz - 1) {
+//         temp.vx[IdxVxFi(ix, iz, cur, zone) - sum_offset_fine_vx[0]] = (
+//             + 0.9 * core.vx[IdxVxFi(ix, iz, cur, zone)]
+//             + 0.02 * (
+//                 + core.vx[IdxVxFi(ix - 1, iz, cur, zone)]
+//                 + core.vx[IdxVxFi(ix + 1, iz, cur, zone)]
+//                 + core.vx[IdxVxFi(ix, iz - 1, cur, zone)]
+//                 + core.vx[IdxVxFi(ix, iz + 1, cur, zone)]
+//             )
+//             + 0.005 * (
+//                 + core.vx[IdxVxFi(ix - 1, iz - 1, cur, zone)]
+//                 + core.vx[IdxVxFi(ix + 1, iz - 1, cur, zone)]
+//                 + core.vx[IdxVxFi(ix - 1, iz + 1, cur, zone)]
+//                 + core.vx[IdxVxFi(ix + 1, iz + 1, cur, zone)]
+//             )
+//         );
+//     }
+//     if (0 < ix && ix < fines[zone].lenx - 1 && 0 < iz && iz < fines[zone].lenz - 2) {
+//         temp.vz[IdxVzFi(ix, iz, cur, zone) - sum_offset_fine_vz[0]] = (
+//             + 0.9 * core.vz[IdxVzFi(ix, iz, cur, zone)]
+//             + 0.02 * (
+//                 + core.vz[IdxVzFi(ix - 1, iz, cur, zone)]
+//                 + core.vz[IdxVzFi(ix + 1, iz, cur, zone)]
+//                 + core.vz[IdxVzFi(ix, iz - 1, cur, zone)]
+//                 + core.vz[IdxVzFi(ix, iz + 1, cur, zone)]
+//             )
+//             + 0.005 * (
+//                 + core.vz[IdxVzFi(ix - 1, iz - 1, cur, zone)]
+//                 + core.vz[IdxVzFi(ix + 1, iz - 1, cur, zone)]
+//                 + core.vz[IdxVzFi(ix - 1, iz + 1, cur, zone)]
+//                 + core.vz[IdxVzFi(ix + 1, iz + 1, cur, zone)]
+//             )
+//         );
+//     }
+
+//     if (0 < ix && ix < fines[zone].lenx - 2 && 0 < iz && iz < fines[zone].lenz - 2) {
+//         temp.txz[IdxTxzFi(ix, iz, cur, zone) - sum_offset_fine_txz[0]] = (
+//             + 0.9 * core.txz[IdxTxzFi(ix, iz, cur, zone)]
+//             + 0.02 * (
+//                 + core.txz[IdxTxzFi(ix - 1, iz, cur, zone)]
+//                 + core.txz[IdxTxzFi(ix + 1, iz, cur, zone)]
+//                 + core.txz[IdxTxzFi(ix, iz - 1, cur, zone)]
+//                 + core.txz[IdxTxzFi(ix, iz + 1, cur, zone)]
+//             )
+//             + 0.005 * (
+//                 + core.txz[IdxTxzFi(ix - 1, iz - 1, cur, zone)]
+//                 + core.txz[IdxTxzFi(ix + 1, iz - 1, cur, zone)]
+//                 + core.txz[IdxTxzFi(ix - 1, iz + 1, cur, zone)]
+//                 + core.txz[IdxTxzFi(ix + 1, iz + 1, cur, zone)]
+//             )
+//         );
+//     }
+
+//     if (0 < ix && ix < fines[zone].lenx - 1 && 0 < iz && iz < fines[zone].lenz - 1) {
+//         temp.sx[IdxSigFi(ix, iz, cur, zone) - sum_offset_fine_sig[0]] = (
+//             + 0.9 * core.sx[IdxSigFi(ix, iz, cur, zone)]
+//             + 0.02 * (
+//                 + core.sx[IdxSigFi(ix - 1, iz, cur, zone)]
+//                 + core.sx[IdxSigFi(ix + 1, iz, cur, zone)]
+//                 + core.sx[IdxSigFi(ix, iz - 1, cur, zone)]
+//                 + core.sx[IdxSigFi(ix, iz + 1, cur, zone)]
+//             )
+//             + 0.005 * (
+//                 + core.sx[IdxSigFi(ix - 1, iz - 1, cur, zone)]
+//                 + core.sx[IdxSigFi(ix + 1, iz - 1, cur, zone)]
+//                 + core.sx[IdxSigFi(ix - 1, iz + 1, cur, zone)]
+//                 + core.sx[IdxSigFi(ix + 1, iz + 1, cur, zone)]
+//             )
+//         );
+
+//         temp.sz[IdxSigFi(ix, iz, cur, zone) - sum_offset_fine_sig[0]] = (
+//             + 0.9 * core.sz[IdxSigFi(ix, iz, cur, zone)]
+//             + 0.02 * (
+//                 + core.sz[IdxSigFi(ix - 1, iz, cur, zone)]
+//                 + core.sz[IdxSigFi(ix + 1, iz, cur, zone)]
+//                 + core.sz[IdxSigFi(ix, iz - 1, cur, zone)]
+//                 + core.sz[IdxSigFi(ix, iz + 1, cur, zone)]
+//             )
+//             + 0.005 * (
+//                 + core.sz[IdxSigFi(ix - 1, iz - 1, cur, zone)]
+//                 + core.sz[IdxSigFi(ix + 1, iz - 1, cur, zone)]
+//                 + core.sz[IdxSigFi(ix - 1, iz + 1, cur, zone)]
+//                 + core.sz[IdxSigFi(ix + 1, iz + 1, cur, zone)]
+//             )
+//         );
+
+//         temp.p[IdxSigFi(ix, iz, cur, zone) - sum_offset_fine_sig[0]] = (
+//             + 0.9 * core.p[IdxSigFi(ix, iz, cur, zone)]
+//             + 0.02 * (
+//                 + core.p[IdxSigFi(ix - 1, iz, cur, zone)]
+//                 + core.p[IdxSigFi(ix + 1, iz, cur, zone)]
+//                 + core.p[IdxSigFi(ix, iz - 1, cur, zone)]
+//                 + core.p[IdxSigFi(ix, iz + 1, cur, zone)]
+//             )
+//             + 0.005 * (
+//                 + core.p[IdxSigFi(ix - 1, iz - 1, cur, zone)]
+//                 + core.p[IdxSigFi(ix + 1, iz - 1, cur, zone)]
+//                 + core.p[IdxSigFi(ix - 1, iz + 1, cur, zone)]
+//                 + core.p[IdxSigFi(ix + 1, iz + 1, cur, zone)]
+//             )
+//         );
+
+//         temp.r[IdxSigFi(ix, iz, cur, zone) - sum_offset_fine_sig[0]] = (
+//             + 0.9 * core.r[IdxSigFi(ix, iz, cur, zone)]
+//             + 0.02 * (
+//                 + core.r[IdxSigFi(ix - 1, iz, cur, zone)]
+//                 + core.r[IdxSigFi(ix + 1, iz, cur, zone)]
+//                 + core.r[IdxSigFi(ix, iz - 1, cur, zone)]
+//                 + core.r[IdxSigFi(ix, iz + 1, cur, zone)]
+//             )
+//             + 0.005 * (
+//                 + core.r[IdxSigFi(ix - 1, iz - 1, cur, zone)]
+//                 + core.r[IdxSigFi(ix + 1, iz - 1, cur, zone)]
+//                 + core.r[IdxSigFi(ix - 1, iz + 1, cur, zone)]
+//                 + core.r[IdxSigFi(ix + 1, iz + 1, cur, zone)]
+//             )
+//         );
+//     }
+// }
+
+// __global__ void smooth_fine_lv2(Core core, Core temp, int cur, int zone) {
+//     int ix = blockIdx.x * blockDim.x + threadIdx.x;
+//     int iz = blockIdx.y * blockDim.y + threadIdx.y;
+
+//     if (ix >= fines[zone].lenx || iz >= fines[zone].lenz) {
+//         return;
+//     }
+
+//     if (0 < ix && ix < fines[zone].lenx - 2 && 0 < iz && iz < fines[zone].lenz - 1) {
+//         temp.vx[IdxVxFi(ix, iz, cur, zone)] = (
+//             + 0.8 * core.vx[IdxVxFi(ix, iz, cur, zone)]
+//             + 0.04 * (
+//                 + core.vx[IdxVxFi(ix - 1, iz, cur, zone)]
+//                 + core.vx[IdxVxFi(ix + 1, iz, cur, zone)]
+//                 + core.vx[IdxVxFi(ix, iz - 1, cur, zone)]
+//                 + core.vx[IdxVxFi(ix, iz + 1, cur, zone)]
+//             )
+//             + 0.01 * (
+//                 + core.vx[IdxVxFi(ix - 1, iz - 1, cur, zone)]
+//                 + core.vx[IdxVxFi(ix + 1, iz - 1, cur, zone)]
+//                 + core.vx[IdxVxFi(ix - 1, iz + 1, cur, zone)]
+//                 + core.vx[IdxVxFi(ix + 1, iz + 1, cur, zone)]
+//             )
+//         );
+//     }
+//     if (0 < ix && ix < fines[zone].lenx - 1 && 0 < iz && iz < fines[zone].lenz - 2) {
+//         temp.vz[IdxVzFi(ix, iz, cur, zone)] = (
+//             + 0.8 * core.vz[IdxVzFi(ix, iz, cur, zone)]
+//             + 0.04 * (
+//                 + core.vz[IdxVzFi(ix - 1, iz, cur, zone)]
+//                 + core.vz[IdxVzFi(ix + 1, iz, cur, zone)]
+//                 + core.vz[IdxVzFi(ix, iz - 1, cur, zone)]
+//                 + core.vz[IdxVzFi(ix, iz + 1, cur, zone)]
+//             )
+//             + 0.01 * (
+//                 + core.vz[IdxVzFi(ix - 1, iz - 1, cur, zone)]
+//                 + core.vz[IdxVzFi(ix + 1, iz - 1, cur, zone)]
+//                 + core.vz[IdxVzFi(ix - 1, iz + 1, cur, zone)]
+//                 + core.vz[IdxVzFi(ix + 1, iz + 1, cur, zone)]
+//             )
+//         );
+//     }
+
+//     if (0 < ix && ix < fines[zone].lenx - 2 && 0 < iz && iz < fines[zone].lenz - 2) {
+//         temp.txz[IdxTxzFi(ix, iz, cur, zone)] = (
+//             + 0.8 * core.txz[IdxTxzFi(ix, iz, cur, zone)]
+//             + 0.04 * (
+//                 + core.txz[IdxTxzFi(ix - 1, iz, cur, zone)]
+//                 + core.txz[IdxTxzFi(ix + 1, iz, cur, zone)]
+//                 + core.txz[IdxTxzFi(ix, iz - 1, cur, zone)]
+//                 + core.txz[IdxTxzFi(ix, iz + 1, cur, zone)]
+//             )
+//             + 0.01 * (
+//                 + core.txz[IdxTxzFi(ix - 1, iz - 1, cur, zone)]
+//                 + core.txz[IdxTxzFi(ix + 1, iz - 1, cur, zone)]
+//                 + core.txz[IdxTxzFi(ix - 1, iz + 1, cur, zone)]
+//                 + core.txz[IdxTxzFi(ix + 1, iz + 1, cur, zone)]
+//             )
+//         );
+//     }
+
+//     if (0 < ix && ix < fines[zone].lenx - 1 && 0 < iz && iz < fines[zone].lenz - 1) {
+//         temp.sx[IdxSigFi(ix, iz, cur, zone)] = (
+//             + 0.8 * core.sx[IdxSigFi(ix, iz, cur, zone)]
+//             + 0.04 * (
+//                 + core.sx[IdxSigFi(ix - 1, iz, cur, zone)]
+//                 + core.sx[IdxSigFi(ix + 1, iz, cur, zone)]
+//                 + core.sx[IdxSigFi(ix, iz - 1, cur, zone)]
+//                 + core.sx[IdxSigFi(ix, iz + 1, cur, zone)]
+//             )
+//             + 0.01 * (
+//                 + core.sx[IdxSigFi(ix - 1, iz - 1, cur, zone)]
+//                 + core.sx[IdxSigFi(ix + 1, iz - 1, cur, zone)]
+//                 + core.sx[IdxSigFi(ix - 1, iz + 1, cur, zone)]
+//                 + core.sx[IdxSigFi(ix + 1, iz + 1, cur, zone)]
+//             )
+//         );
+
+//         temp.sz[IdxSigFi(ix, iz, cur, zone)] = (
+//             + 0.8 * core.sz[IdxSigFi(ix, iz, cur, zone)]
+//             + 0.04 * (
+//                 + core.sz[IdxSigFi(ix - 1, iz, cur, zone)]
+//                 + core.sz[IdxSigFi(ix + 1, iz, cur, zone)]
+//                 + core.sz[IdxSigFi(ix, iz - 1, cur, zone)]
+//                 + core.sz[IdxSigFi(ix, iz + 1, cur, zone)]
+//             )
+//             + 0.01 * (
+//                 + core.sz[IdxSigFi(ix - 1, iz - 1, cur, zone)]
+//                 + core.sz[IdxSigFi(ix + 1, iz - 1, cur, zone)]
+//                 + core.sz[IdxSigFi(ix - 1, iz + 1, cur, zone)]
+//                 + core.sz[IdxSigFi(ix + 1, iz + 1, cur, zone)]
+//             )
+//         );
+
+//         temp.p[IdxSigFi(ix, iz, cur, zone)] = (
+//             + 0.8 * core.p[IdxSigFi(ix, iz, cur, zone)]
+//             + 0.04 * (
+//                 + core.p[IdxSigFi(ix - 1, iz, cur, zone)]
+//                 + core.p[IdxSigFi(ix + 1, iz, cur, zone)]
+//                 + core.p[IdxSigFi(ix, iz - 1, cur, zone)]
+//                 + core.p[IdxSigFi(ix, iz + 1, cur, zone)]
+//             )
+//             + 0.01 * (
+//                 + core.p[IdxSigFi(ix - 1, iz - 1, cur, zone)]
+//                 + core.p[IdxSigFi(ix + 1, iz - 1, cur, zone)]
+//                 + core.p[IdxSigFi(ix - 1, iz + 1, cur, zone)]
+//                 + core.p[IdxSigFi(ix + 1, iz + 1, cur, zone)]
+//             )
+//         );
+
+//         temp.r[IdxSigFi(ix, iz, cur, zone)] = (
+//             + 0.8 * core.r[IdxSigFi(ix, iz, cur, zone)]
+//             + 0.04 * (
+//                 + core.r[IdxSigFi(ix - 1, iz, cur, zone)]
+//                 + core.r[IdxSigFi(ix + 1, iz, cur, zone)]
+//                 + core.r[IdxSigFi(ix, iz - 1, cur, zone)]
+//                 + core.r[IdxSigFi(ix, iz + 1, cur, zone)]
+//             )
+//             + 0.01 * (
+//                 + core.r[IdxSigFi(ix - 1, iz - 1, cur, zone)]
+//                 + core.r[IdxSigFi(ix + 1, iz - 1, cur, zone)]
+//                 + core.r[IdxSigFi(ix - 1, iz + 1, cur, zone)]
+//                 + core.r[IdxSigFi(ix + 1, iz + 1, cur, zone)]
+//             )
+//         );
+//     }
+// }
 
 // __global__ void sync_fine_to_coarse_str(Core core, int cur, int zone) {
 //     int ix = blockIdx.x * blockDim.x + threadIdx.x;

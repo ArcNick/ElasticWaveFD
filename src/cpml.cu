@@ -47,8 +47,8 @@ void Cpml::load(const std::string &file) {
     std::cout << "CPML parameters loaded.\n";
 
     L = thickness * dx_host_coarse;
-    damp0 = -(NPOW + 1) * cp_max * log(Rc) / (2 * L);
-    alpha0 = M_PI * cJSON_GetObjectItem(base, "fpeak")->valuedouble;
+    damp0 = -1.5 * (NPOW + 1) * cp_max * log(Rc) / (2 * L);
+    alpha0 = 2 * M_PI * cJSON_GetObjectItem(base, "fpeak")->valuedouble;
 
     mem_allocate(nx_host_coarse, nz_host_coarse);
     
