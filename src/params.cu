@@ -45,13 +45,13 @@ void Params::build_constant() {
 
 std::unique_ptr<float[]> Params::ricker_wavelet() {
     std::unique_ptr<float[]> wavelet = std::make_unique<float[]>(nt);
-    float T = 1 / fpeak;
+    float T = 1.2 / fpeak;
     double PI = 3.14159265358979323846;
     for (int it = 0; it < nt; it++) {
         float t = it * dt - T;
         float temp = PI * fpeak * t;
         temp *= temp;
-        wavelet[it] = (1 - 2 * temp) * exp(-temp);
+        wavelet[it] = (1 - 2 * temp) * exp(-temp) * GAIN;
     }
     return wavelet;
 }

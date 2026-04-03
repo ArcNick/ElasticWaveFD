@@ -5,7 +5,7 @@ import random
 
 SOLID = 0
 FLUID = 1
-
+MID   = 2
 # ========== 模型参数 ==========
 # 粗网格尺寸
 nx = 501
@@ -15,9 +15,9 @@ dz = 1.0
 
 # 时间参数
 fpeak = 30.0
-dt = 1e-5
-nt = 30000
-snapshot = 200
+dt = 9e-6
+nt = 220000
+snapshot = 5000
 
 # 介质参数（均匀介质）
 # 固体区域
@@ -56,7 +56,7 @@ C55_fluid = rho_fluid * vs_fluid**2
 C13_fluid = C11_fluid - 2 * C55_fluid
 C33_fluid = C11_fluid
 omega0 = 2 * np.pi * fpeak
-Qp = 20
+Qp = 100
 inv_ts = omega0 * Qp
 tau = 1 / Qp * (1 + 1 / Qp**2)**0.5
 
@@ -64,7 +64,7 @@ tau = 1 / Qp * (1 + 1 / Qp**2)**0.5
 fine_regions = [
     {
         "x_start": 200, "x_end": 300,
-        "z_start": 280, "z_end": 380,
+        "z_start": 240, "z_end": 400,
         "N": 3
     }
 ]
@@ -77,7 +77,7 @@ posz = 40
 cpml_thickness = 20
 cpml_N = 3
 cp_max = max(vp_1, vp_2, vp_3, vp_fluid)
-Rc = 0.001
+Rc = 0.0001
 kappa0 = 1.2
 
 # ========== 创建目录结构 ==========
@@ -97,17 +97,17 @@ coarse_C55 = np.full((nz, nx), C55_1, dtype=np.float32)
 coarse_tau = np.full((nz, nx), 0, dtype=np.float32)
 coarse_inv_taus = np.full((nz, nx), 0, dtype=np.float32)
 
-coarse_rho[250:400,] = rho_2
-coarse_C11[250:400,] = C11_2
-coarse_C13[250:400,] = C13_2
-coarse_C33[250:400,] = C33_2
-coarse_C55[250:400,] = C55_2
+# coarse_rho[250:400,] = rho_2
+# coarse_C11[250:400,] = C11_2
+# coarse_C13[250:400,] = C13_2
+# coarse_C33[250:400,] = C33_2
+# coarse_C55[250:400,] = C55_2
 
-coarse_rho[400:501,] = rho_3
-coarse_C11[400:501,] = C11_3
-coarse_C13[400:501,] = C13_3
-coarse_C33[400:501,] = C33_3
-coarse_C55[400:501,] = C55_3
+# coarse_rho[400:501,] = rho_3
+# coarse_C11[400:501,] = C11_3
+# coarse_C13[400:501,] = C13_3
+# coarse_C33[400:501,] = C33_3
+# coarse_C55[400:501,] = C55_3
 
 # 标记流体区域
 # coarse_MAT[300:400, 200:300] = FLUID
@@ -145,17 +145,15 @@ for idx, region in enumerate(fine_regions):
     os.makedirs(region_dir, exist_ok=True)
     
     # 细网格模型（均匀介质，与粗网格相同）
-    fine_rho = np.full((lenz, lenx), rho_2, dtype=np.float32)
-    fine_C11 = np.full((lenz, lenx), C11_2, dtype=np.float32)
-    fine_C13 = np.full((lenz, lenx), C13_2, dtype=np.float32)
-    fine_C33 = np.full((lenz, lenx), C33_2, dtype=np.float32)
-    fine_C55 = np.full((lenz, lenx), C55_2, dtype=np.float32)
+    fine_rho = np.full((lenz, lenx), rho_1, dtype=np.float32)
+    fine_C11 = np.full((lenz, lenx), C11_1, dtype=np.float32)
+    fine_C13 = np.full((lenz, lenx), C13_1, dtype=np.float32)
+    fine_C33 = np.full((lenz, lenx), C33_1, dtype=np.float32)
+    fine_C55 = np.full((lenz, lenx), C55_1, dtype=np.float32)
     fine_tau = np.full((lenz, lenx), 0, dtype=np.float32)
     fine_inv_taus = np.full((lenz, lenx), 0, dtype=np.float32)
     fine_MAT = np.full((lenz, lenx), SOLID, dtype=np.int32)
 
-
-        
     # fine_MAT[200 : 800 : 40, 200 : 800] = FLUID
     # fine_MAT[201 : 800 : 40, 200 : 800] = FLUID
     # fine_MAT[202 : 800 : 40, 200 : 800] = FLUID
@@ -166,10 +164,8 @@ for idx, region in enumerate(fine_regions):
     # fine_MAT[207 : 800 : 40, 200 : 800] = FLUID
     # fine_MAT[208 : 800 : 40, 200 : 800] = FLUID
     # fine_MAT[209 : 800 : 40, 200 : 800] = FLUID
-    fine_MAT[10 : fine_MAT.shape[0] - 10 : 10, 10 : fine_MAT.shape[1] - 10 : 10] = FLUID
-    fine_MAT[11 : fine_MAT.shape[0] - 10 : 10, 10 : fine_MAT.shape[1] - 10 : 10] = FLUID
-    fine_MAT[10 : fine_MAT.shape[0] - 10 : 10, 11 : fine_MAT.shape[1] - 10 : 10] = FLUID
 
+    fine_MAT[80 : fine_MAT.shape[0] - 80, 80 : fine_MAT.shape[1] - 80] = FLUID
     fine_rho[fine_MAT == FLUID] = rho_fluid
     fine_C11[fine_MAT == FLUID] = C11_fluid
     fine_C13[fine_MAT == FLUID] = C13_fluid

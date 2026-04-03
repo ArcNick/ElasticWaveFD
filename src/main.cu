@@ -109,8 +109,8 @@ int main() {
             cudaStreamSynchronize(stream_fi[i]);
         }
 
-        output_record(gm, params.posz, fp_record_vz, cur);
-        if (it % 100 == 0) {
+        output_record(gm, params.posz - 5, fp_record_vz, cur);
+        if (it % 50 == 0) {
             smooth_fine(gm, stream_manager, cur);
         }
 
@@ -135,13 +135,13 @@ void smooth_fine(GridManager &gm, StreamManager &sm, int time) {
     dim3 block(16, 16);
     for (int i = 0; i < gm.fine_info.size(); i++) {
         dim3 grid_fi((gm.fine_info[i].lenx + 15) / 16, (gm.fine_info[i].lenz + 15) / 16);
-        smooth_fine_sx<2><<<grid_fi, block, 0, sm.stream_sx>>>(gm.core_d.sx, gm.core_temp.sx, time, i);
-        smooth_fine_vx<2><<<grid_fi, block, 0, sm.stream_vx>>>(gm.core_d.vx, gm.core_temp.vx, time, i);
-        smooth_fine_vz<2><<<grid_fi, block, 0, sm.stream_vz>>>(gm.core_d.vz, gm.core_temp.vz, time, i);
-        smooth_fine_sz<2><<<grid_fi, block, 0, sm.stream_sz>>>(gm.core_d.sz, gm.core_temp.sz, time, i);
-        smooth_fine_p<2><<<grid_fi, block, 0, sm.stream_p>>>(gm.core_d.p, gm.core_temp.p, time, i);
-        smooth_fine_rp<2><<<grid_fi, block, 0, sm.stream_r>>>(gm.core_d.r, gm.core_temp.r, time, i);
-        smooth_fine_txz<2><<<grid_fi, block, 0, sm.stream_txz>>>(gm.core_d.txz, gm.core_temp.txz, time, i);
+        smooth_fine_vx<<<grid_fi, block, 0, sm.stream_vx>>>(gm.core_d.vx, gm.core_temp.vx, time, i, 2);
+        smooth_fine_vz<<<grid_fi, block, 0, sm.stream_vz>>>(gm.core_d.vz, gm.core_temp.vz, time, i, 2);
+        smooth_fine_txz<<<grid_fi, block, 0, sm.stream_txz>>>(gm.core_d.txz, gm.core_temp.txz, time, i, 2);
+        smooth_fine_sig<<<grid_fi, block, 0, sm.stream_sx>>>(gm.core_d.sx, gm.core_temp.sx, time, i, 2);
+        smooth_fine_sig<<<grid_fi, block, 0, sm.stream_sz>>>(gm.core_d.sz, gm.core_temp.sz, time, i, 2);
+        smooth_fine_rp<<<grid_fi, block, 0, sm.stream_r>>>(gm.core_d.r, gm.core_temp.r, time, i, 3);
+        smooth_fine_p<<<grid_fi, block, 0, sm.stream_p>>>(gm.core_d.p, gm.core_temp.p, time, i, 3);
     }
 
     int bytes_vx = (gm.offset_time_vx - gm.offset_coarse_vx) * sizeof(float);

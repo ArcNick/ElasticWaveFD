@@ -4,6 +4,8 @@
 #include <string>
 #include <memory>
 
+#define GAIN 1e6
+
 class Params {
 public:
     float fpeak;  
