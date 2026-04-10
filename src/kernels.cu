@@ -57,7 +57,7 @@ __global__ void apply_source(Core core, float src, int cur) {
     core.sz[posz_d * nx + posx_d + cur * offset_sig_all] += src * dt_d;
 }
 
-__global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int cur) {
+__global__ void update_sigma_coarse(Core core, Model model, PsiVel psi_vel, int cur, int it) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -98,12 +98,12 @@ __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int
             }
 
             core.sx[IdxSigCo(ix, iz, cur)] = (
-                    + core.sx[IdxSigCo(ix, iz, cur ^ 1)]
-                    + dt_d * (
-                        + model.C11[IdxSigCo(ix, iz, 0)] * dvx_dx 
-                        + model.C13[IdxSigCo(ix, iz, 0)] * dvz_dz
-                    )
-                );
+                + core.sx[IdxSigCo(ix, iz, cur ^ 1)]
+                + dt_d * (
+                    + model.C11[IdxSigCo(ix, iz, 0)] * dvx_dx 
+                    + model.C13[IdxSigCo(ix, iz, 0)] * dvz_dz
+                )
+            );
             core.sz[IdxSigCo(ix, iz, cur)] = (
                 + core.sz[IdxSigCo(ix, iz, cur ^ 1)]
                 + dt_d * (
@@ -112,7 +112,112 @@ __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int
                 )
             );
         }
+        break;
 
+    case FLUID:
+        if (tex1Dfetch<int>(sig_mask, iz * nx + ix) == -1) {
+            float dvx_dx = 0;
+            float dvz_dz = 0;
+            if (ix > 3) {
+                dvx_dx = dvx_dx_coarse(core.vx, ix, iz, cur ^ 1);
+            }
+            if (iz > 3) {
+                dvz_dz = dvz_dz_coarse(core.vz, ix, iz, cur ^ 1);
+            }
+            
+            core.p[IdxSigCo(ix, iz, cur)] = core.p[IdxSigCo(ix, iz, cur ^ 1)] + (
+                - dt_d * ( 
+                    + model.C11[IdxSigCo(ix, iz, 0)] * (1 + model.taup[IdxSigCo(ix, iz, 0)]) * (
+                        dvx_dx + dvz_dz
+                    )
+                    - core.rp[IdxSigCo(ix, iz, cur ^ 1)] * model.inv_tsig[IdxSigCo(ix, iz, 0)]
+                )
+            );
+            core.sx[IdxSigCo(ix, iz, cur)] = -core.p[IdxSigCo(ix, iz, cur)];
+            core.sz[IdxSigCo(ix, iz, cur)] = -core.p[IdxSigCo(ix, iz, cur)];
+
+            core.rp[IdxSigCo(ix, iz, cur)] = core.rp[IdxSigCo(ix, iz, cur ^ 1)] + (
+                - dt_d * (
+                    + core.rp[IdxSigCo(ix, iz, cur ^ 1)] * model.inv_tsig[IdxSigCo(ix, iz, 0)]
+                    + model.C11[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * (
+                        dvx_dx + dvz_dz
+                    )
+                )
+            );
+        }
+        break;
+
+    case VESOLID:
+        if (tex1Dfetch<int>(sig_mask, iz * nx + ix) == -1) {
+            float dvx_dx = 0;
+            float dvz_dz = 0;
+            if (ix > 3) {
+                dvx_dx = dvx_dx_coarse(core.vx, ix, iz, cur ^ 1);
+            }
+            if (iz > 3) {
+                dvz_dz = dvz_dz_coarse(core.vz, ix, iz, cur ^ 1);
+            }
+            
+            // 粘弹性区不设置在边界区
+            core.sx[IdxSigCo(ix, iz, cur)] = (
+                + core.sx[IdxSigCo(ix, iz, cur ^ 1)]
+                + dt_d * (
+                    + model.C11[IdxSigCo(ix, iz, 0)] * (
+                        1 + model.taup[IdxSigCo(ix, iz, 0)]
+                    ) * dvx_dx 
+                    + model.C13[IdxSigCo(ix, iz, 0)] * (
+                        1 + model.taup[IdxSigCo(ix, iz, 0)]
+                    ) * dvz_dz
+                ) + model.inv_tsig[IdxSigCo(ix, iz, 0)] * core.rx[IdxSigCo(ix, iz, cur ^ 1)]
+            );
+
+            core.sz[IdxSigCo(ix, iz, cur)] = (
+                + core.sz[IdxSigCo(ix, iz, cur ^ 1)]
+                + dt_d * (
+                    + model.C13[IdxSigCo(ix, iz, 0)] * (
+                        1 + model.taup[IdxSigCo(ix, iz, 0)]
+                    ) * dvx_dx
+                    + model.C33[IdxSigCo(ix, iz, 0)] * (
+                        1 + model.taup[IdxSigCo(ix, iz, 0)]
+                    ) * dvz_dz
+                ) + model.inv_tsig[IdxSigCo(ix, iz, 0)] * core.rz[IdxSigCo(ix, iz, cur ^ 1)]
+            );
+            core.rx[IdxSigCo(ix, iz, cur)] = core.rx[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
+                - model.inv_tsig[IdxSigCo(ix, iz, 0)] * core.rx[IdxSigCo(ix, iz, cur ^ 1)]
+                - model.C11[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvx_dx
+                - model.C13[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvz_dz
+            );
+            core.rz[IdxSigCo(ix, iz, cur)] = core.rz[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
+                - model.inv_tsig[IdxSigCo(ix, iz, 0)] * core.rz[IdxSigCo(ix, iz, cur ^ 1)]
+                - model.C13[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvx_dx
+                - model.C33[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvz_dz
+            );
+        }
+        break;
+    }
+}
+
+__global__ void update_tau_coarse(Core core, Model model, PsiVel psi_vel, int cur, int it) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x;
+    int iz = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (ix < 3 || ix >= nx - 4 || iz < 3 || iz >= nz - 4) {
+        return;
+    }
+    auto is_fluid = [&](int x, int z) -> bool {
+        return MAT(IdxSigCo(x, z, 0)) == FLUID || MAT(IdxSigCo(x + 1, z, 0)) == FLUID || 
+               MAT(IdxSigCo(x, z + 1, 0)) == FLUID || MAT(IdxSigCo(x + 1, z + 1, 0)) == FLUID;
+    };
+    auto is_vesolid_txz = [&](int x, int z) -> bool {
+        return MAT(IdxSigCo(x, z, 0)) == VESOLID || MAT(IdxSigCo(x + 1, z, 0)) == VESOLID || 
+               MAT(IdxSigCo(x, z + 1, 0)) == VESOLID || MAT(IdxSigCo(x + 1, z + 1, 0)) == VESOLID;
+    };
+    if (is_fluid(ix, iz)) {
+        return;
+    }
+
+    switch (is_vesolid_txz(ix, iz)) {
+    case 0:
         if (tex1Dfetch<int>(txz_mask, iz * (nx - 1) + ix) == -1) {
             float dvz_dx = 0;
             float dvx_dz = 0;
@@ -147,39 +252,26 @@ __global__ void update_stress_coarse(Core core, Model model, PsiVel psi_vel, int
         }
         break;
 
-    case FLUID:
-        if (tex1Dfetch<int>(sig_mask, iz * nx + ix) == -1) {
-            float dvx_dx = 0;
-            float dvz_dz = 0;
-            if (ix > 3) {
-                dvx_dx = dvx_dx_coarse(core.vx, ix, iz, cur ^ 1);
-            }
-            if (iz > 3) {
-                dvz_dz = dvz_dz_coarse(core.vz, ix, iz, cur ^ 1);
-            }
-            
-            core.p[IdxSigCo(ix, iz, cur)] = core.p[IdxSigCo(ix, iz, cur ^ 1)] + (
-                - dt_d * ( 
-                    + model.C11[IdxSigCo(ix, iz, 0)] * (1 + model.tau[IdxSigCo(ix, iz, 0)]) * (
-                        dvx_dx + dvz_dz
-                    )
-                    - core.r[IdxSigCo(ix, iz, cur ^ 1)] * model.inv_taus[IdxSigCo(ix, iz, cur ^ 1)]
-                )
-            );
-            core.sx[IdxSigCo(ix, iz, cur)] = -core.p[IdxSigCo(ix, iz, cur)];
-            core.sz[IdxSigCo(ix, iz, cur)] = -core.p[IdxSigCo(ix, iz, cur)];
+    case 1:
+        if (tex1Dfetch<int>(txz_mask, iz * (nx - 1) + ix) == -1) {
+            float dvz_dx = 0;
+            float dvx_dz = 0;
+            dvx_dz = dvx_dz_coarse(core.vx, ix, iz, cur ^ 1);
+            dvz_dx = dvz_dx_coarse(core.vz, ix, iz, cur ^ 1);
 
-            core.r[IdxSigCo(ix, iz, cur)] = core.r[IdxSigCo(ix, iz, cur ^ 1)] + (
-                - dt_d * (
-                    + core.r[IdxSigCo(ix, iz, cur ^ 1)] * model.inv_taus[IdxSigCo(ix, iz, cur ^ 1)]
-                    + model.C11[IdxSigCo(ix, iz, 0)] * model.tau[IdxSigCo(ix, iz, 0)] * (
-                        dvx_dx + dvz_dz
-                    )
-                )
+            core.txz[IdxTxzCo(ix, iz, cur)] = core.txz[IdxTxzCo(ix, iz, cur ^ 1)] + (
+                + dt_d * samp_C55_coarse(model.C55, ix, iz) * (dvz_dx + dvx_dz) * (
+                    1 + samp_taus_coarse(model.taus, ix, iz)
+                ) 
+                + model.inv_tsig[IdxTxzCo(ix, iz, 0)] * core.txz[IdxTxzCo(ix, iz, cur ^ 1)]
+            );
+            core.rxz[IdxTxzCo(ix, iz, cur)] = core.rxz[IdxTxzCo(ix, iz, cur ^ 1)] + dt_d * (
+                - model.inv_tsig[IdxTxzCo(ix, iz, 0)] * core.rxz[IdxTxzCo(ix, iz, cur ^ 1)]
+                - model.C55[IdxTxzCo(ix, iz, 0)] * model.taus[IdxTxzCo(ix, iz, 0)] * (dvz_dx + dvx_dz)
             );
         }
         break;
-    }
+    } 
 }
 
 __global__ void apply_fluid_boundary_coarse(Core core, int cur) {
@@ -194,10 +286,15 @@ __global__ void apply_fluid_boundary_coarse(Core core, int cur) {
         core.txz[IdxTxzCo(max(0, ix - 1), iz, cur)] = 0;
         core.txz[IdxTxzCo(ix, max(0, iz - 1), cur)] = 0;
         core.txz[IdxTxzCo(max(0, ix - 1), max(0, iz - 1), cur)] = 0;
+
+        core.rxz[IdxTxzCo(ix, iz, cur)] = 0;
+        core.rxz[IdxTxzCo(max(0, ix - 1), iz, cur)] = 0;
+        core.rxz[IdxTxzCo(ix, max(0, iz - 1), cur)] = 0;
+        core.rxz[IdxTxzCo(max(0, ix - 1), max(0, iz - 1), cur)] = 0;
     }
 }
 
-__global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, int cur) {
+__global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, int cur, int it) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -207,12 +304,10 @@ __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, i
 
     if (tex1Dfetch<int>(vx_mask, iz * (nx - 1) + ix) == -1) {
         float dsx_dx = dsx_dx_coarse(core.sx, ix, iz, cur);
-        float dtxz_dz = 0;                                        // HALO 或者流体内部默认为0
+        float dtxz_dz = 0;   // HALO 或者流体内部默认为0
         // 1. 固体内部以及流固边界，使用txz的导数
         // 2. 流体内部，不使用txz的导数
-        if (iz > 3 &&
-            ((MAT(iz * nx + ix) == SOLID && MAT(iz * nx + ix + 1) == SOLID) || // 1. 固体内部
-            MAT(iz * nx + ix) != MAT(iz * nx + ix + 1))) {                     // 2. 流固边界
+        if (iz > 3 && MAT(iz * nx + ix) + MAT(iz * nx + ix + 1) <= 3) {
             dtxz_dz = dtxz_dz_coarse(core.txz, ix, iz, cur);
         }
 
@@ -243,10 +338,8 @@ __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, i
 
     if (tex1Dfetch<int>(vz_mask, iz * nx + ix) == -1) {
         float dsz_dz = dsz_dz_coarse(core.sz, ix, iz, cur);
-        float dtxz_dx = 0;                                      // HALO 或者流体内部默认为0
-        if (ix > 3 && 
-            ((MAT(iz * nx + ix) == SOLID && MAT((iz + 1) * nx + ix) == SOLID) || // 1. 固体内部
-            MAT(iz * nx + ix) != MAT((iz + 1) * nx + ix))) {                     // 2. 流固边界
+        float dtxz_dx = 0; // HALO 或者流体内部默认为0
+        if (ix > 3 && MAT(iz * nx + ix) + MAT((iz + 1) * nx + ix) <= 3) {
             dtxz_dx = dtxz_dx_coarse(core.txz, ix, iz, cur);
         }
 
@@ -277,21 +370,17 @@ __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, i
     }
 }
 
-__global__ void update_stress_fine(Core core, Model model, int cur, int zone) {
+__global__ void update_sigma_fine(Core core, Model model, int cur, int zone) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
 
     if (ix >= fines[zone].lenx || iz >= fines[zone].lenz) {
         return;
     }
-    float dvx_dx = 0;
-    float dvz_dz = 0;
-
     switch (MAT(IdxSigFi(ix, iz, 0, zone))) {
-    default:
-        dvx_dx = dvx_dx_8th(core.vx, ix, iz, cur ^ 1, zone);
-        dvz_dz = dvz_dz_8th(core.vz, ix, iz, cur ^ 1, zone);
-    case SOLID:
+    case SOLID: {
+        float dvx_dx = dvx_dx_8th(core.vx, ix, iz, cur ^ 1, zone);
+        float dvz_dz = dvz_dz_8th(core.vz, ix, iz, cur ^ 1, zone);
         core.sx[IdxSigFi(ix, iz, cur, zone)] = core.sx[IdxSigFi(ix, iz, cur ^ 1, zone)] + (
             dt_d * (
                 + model.C11[IdxSigFi(ix, iz, 0, zone)] * dvx_dx
@@ -304,45 +393,98 @@ __global__ void update_stress_fine(Core core, Model model, int cur, int zone) {
                 + model.C33[IdxSigFi(ix, iz, 0, zone)] * dvz_dz
             )
         );
-
-        if (ix < fines[zone].lenx - 1 && iz < fines[zone].lenz - 1) {
-            float dvx_dz = dvx_dz_8th(core.vx, ix, iz, cur ^ 1, zone);
-            float dvz_dx = dvz_dx_8th(core.vz, ix, iz, cur ^ 1, zone);
-            core.txz[IdxTxzFi(ix, iz, cur, zone)] = core.txz[IdxTxzFi(ix, iz, cur ^ 1, zone)] + (
-                dt_d * samp_C55_fine(model.C55, ix, iz, zone) * (dvz_dx + dvx_dz)
-            );
-        }
         break;
-
-    case FLUID:
+    }
+    case FLUID: {
+        float dvx_dx = dvx_dx_8th(core.vx, ix, iz, cur ^ 1, zone);
+        float dvz_dz = dvz_dz_8th(core.vz, ix, iz, cur ^ 1, zone);
         core.p[IdxSigFi(ix, iz, cur, zone)] = core.p[IdxSigFi(ix, iz, cur ^ 1, zone)] + dt_d * (
-            - model.C11[IdxSigFi(ix, iz, 0, zone)] * (1 + model.tau[IdxSigFi(ix, iz, 0, zone)]) * (
+            - model.C11[IdxSigFi(ix, iz, 0, zone)] * (1 + model.taup[IdxSigFi(ix, iz, 0, zone)]) * (
                 dvx_dx + dvz_dz
-            ) + model.inv_taus[IdxSigFi(ix, iz, 0, zone)] * core.r[IdxSigFi(ix, iz, cur ^ 1, zone)]
+            ) - model.inv_tsig[IdxSigFi(ix, iz, 0, zone)] * core.rp[IdxSigFi(ix, iz, cur ^ 1, zone)]
         );
         core.sx[IdxSigFi(ix, iz, cur, zone)] = -core.p[IdxSigFi(ix, iz, cur, zone)];
         core.sz[IdxSigFi(ix, iz, cur, zone)] = -core.p[IdxSigFi(ix, iz, cur, zone)];
 
-        core.r[IdxSigFi(ix, iz, cur, zone)] = core.r[IdxSigFi(ix, iz, cur ^ 1, zone)] + dt_d * (
-            - model.inv_taus[IdxSigFi(ix, iz, 0, zone)] * core.r[IdxSigFi(ix, iz, cur ^ 1, zone)]
-            - model.C11[IdxSigFi(ix, iz, 0, zone)] * model.tau[IdxSigFi(ix, iz, 0, zone)] * (dvx_dx + dvz_dz)
+        core.rp[IdxSigFi(ix, iz, cur, zone)] = core.rp[IdxSigFi(ix, iz, cur ^ 1, zone)] + dt_d * (
+            - model.inv_tsig[IdxSigFi(ix, iz, 0, zone)] * core.rp[IdxSigFi(ix, iz, cur ^ 1, zone)]
+            - model.C11[IdxSigFi(ix, iz, 0, zone)] * model.taup[IdxSigFi(ix, iz, 0, zone)] * (dvx_dx + dvz_dz)
         );
         break;
     }
+    case VESOLID: {
+        float dvx_dx = dvx_dx_8th(core.vx, ix, iz, cur ^ 1, zone);
+        float dvz_dz = dvz_dz_8th(core.vz, ix, iz, cur ^ 1, zone);
+        core.sx[IdxSigFi(ix, iz, cur, zone)] = core.sx[IdxSigFi(ix, iz, cur ^ 1, zone)] + (
+            dt_d * (
+                + model.C11[IdxSigFi(ix, iz, 0, zone)] * (1 + model.taup[IdxSigFi(ix, iz, 0, zone)]) * dvx_dx
+                + model.C13[IdxSigFi(ix, iz, 0, zone)] * (1 + model.taup[IdxSigFi(ix, iz, 0, zone)]) * dvz_dz
+            ) + model.inv_tsig[IdxSigFi(ix, iz, 0, zone)] * core.rx[IdxSigFi(ix, iz, cur ^ 1, zone)]
+        );
+        core.sz[IdxSigFi(ix, iz, cur, zone)] = core.sz[IdxSigFi(ix, iz, cur ^ 1, zone)] + (
+            dt_d * (
+                + model.C13[IdxSigFi(ix, iz, 0, zone)] * (1 + model.taup[IdxSigFi(ix, iz, 0, zone)]) * dvx_dx
+                + model.C33[IdxSigFi(ix, iz, 0, zone)] * (1 + model.taup[IdxSigFi(ix, iz, 0, zone)]) * dvz_dz
+            ) + model.inv_tsig[IdxSigFi(ix, iz, 0, zone)] * core.rz[IdxSigFi(ix, iz, cur ^ 1, zone)]
+        );
+        core.rx[IdxSigFi(ix, iz, cur, zone)] = core.rx[IdxSigFi(ix, iz, cur ^ 1, zone)] + dt_d * (
+            - model.inv_tsig[IdxSigFi(ix, iz, 0, zone)] * core.rx[IdxSigFi(ix, iz, cur ^ 1, zone)]
+            - model.C11[IdxSigFi(ix, iz, 0, zone)] * model.taup[IdxSigFi(ix, iz, 0, zone)] * dvx_dx
+            - model.C13[IdxSigFi(ix, iz, 0, zone)] * model.taup[IdxSigFi(ix, iz, 0, zone)] * dvz_dz
+        );
+        core.rz[IdxSigFi(ix, iz, cur, zone)] = core.rz[IdxSigFi(ix, iz, cur ^ 1, zone)] + dt_d * (
+            - model.inv_tsig[IdxSigFi(ix, iz, 0, zone)] * core.rz[IdxSigFi(ix, iz, cur ^ 1, zone)]
+            - model.C13[IdxSigFi(ix, iz, 0, zone)] * model.taup[IdxSigFi(ix, iz, 0, zone)] * dvx_dx
+            - model.C33[IdxSigFi(ix, iz, 0, zone)] * model.taup[IdxSigFi(ix, iz, 0, zone)] * dvz_dz
+        );
+        break;
+    }
+    }
 }
 
-__global__ void apply_fluid_boundary_fine(Core core, int cur, int zone) {
+__global__ void update_tau_fine(Core core, Model model, int cur, int zone) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
 
-    if (ix >= fines[zone].lenx || iz >= fines[zone].lenz) {
+    if (ix >= fines[zone].lenx - 1 || iz >= fines[zone].lenz - 1) {
         return;
     }
-    if (tex1Dfetch<int>(mat_tex, IdxSigFi(ix, iz, 0, zone)) == FLUID) {
-        core.txz[IdxTxzFi(ix, iz, cur, zone)] = 0;
-        core.txz[IdxTxzFi(max(0, ix - 1), iz, cur, zone)] = 0;
-        core.txz[IdxTxzFi(ix, max(0, iz - 1), cur, zone)] = 0;
-        core.txz[IdxTxzFi(max(0, ix - 1), max(0, iz - 1), cur, zone)] = 0;
+    auto is_fluid = [&](int x, int z) -> bool {
+        return MAT(IdxSigFi(x, z, 0, zone)) == FLUID || MAT(IdxSigFi(x + 1, z, 0, zone)) == FLUID || 
+               MAT(IdxSigFi(x, z + 1, 0, zone)) == FLUID || MAT(IdxSigFi(x + 1, z + 1, 0, zone)) == FLUID;
+    };
+    auto is_vesolid_txz = [&](int x, int z) -> bool {
+        return MAT(IdxSigFi(x, z, 0, zone)) == VESOLID || MAT(IdxSigFi(x + 1, z, 0, zone)) == VESOLID || 
+               MAT(IdxSigFi(x, z + 1, 0, zone)) == VESOLID || MAT(IdxSigFi(x + 1, z + 1, 0, zone)) == VESOLID;
+    };
+    if (is_fluid(ix, iz)) {
+        return;
+    }
+
+    switch (is_vesolid_txz(ix, iz)) {
+    case 0: {
+        float dvx_dz = dvx_dz_8th(core.vx, ix, iz, cur ^ 1, zone);
+        float dvz_dx = dvz_dx_8th(core.vz, ix, iz, cur ^ 1, zone);
+        core.txz[IdxTxzFi(ix, iz, cur, zone)] = core.txz[IdxTxzFi(ix, iz, cur ^ 1, zone)] + (
+            dt_d * samp_C55_fine(model.C55, ix, iz, zone) * (dvz_dx + dvx_dz)
+        );
+        break;
+    }
+    case 1: {
+        float dvx_dz = dvx_dz_8th(core.vx, ix, iz, cur ^ 1, zone);
+        float dvz_dx = dvz_dx_8th(core.vz, ix, iz, cur ^ 1, zone);
+        core.txz[IdxTxzFi(ix, iz, cur, zone)] = core.txz[IdxTxzFi(ix, iz, cur ^ 1, zone)] + (
+            dt_d * samp_C55_fine(model.C55, ix, iz, zone) * (
+                1 + samp_taus_fine(model.taus, ix, iz, zone)
+            ) * (dvz_dx + dvx_dz) 
+            + model.inv_tsig[IdxTxzFi(ix, iz, 0, zone)] * core.txz[IdxTxzFi(ix, iz, cur ^ 1, zone)]
+        );
+        core.rxz[IdxTxzFi(ix, iz, cur, zone)] = core.rxz[IdxTxzFi(ix, iz, cur ^ 1, zone)] + dt_d * (
+            - model.inv_tsig[IdxTxzFi(ix, iz, 0, zone)] * core.rxz[IdxTxzFi(ix, iz, cur ^ 1, zone)]
+            - model.C55[IdxTxzFi(ix, iz, 0, zone)] * model.taus[IdxTxzFi(ix, iz, 0, zone)] * (dvz_dx + dvx_dz)
+        );
+        break;
+    }
     }
 }
 
@@ -360,8 +502,7 @@ __global__ void update_velocity_fine(Core core, Model model, int cur, int zone) 
     float dtxz_dz = 0;
     
     if (ix < fines[zone].lenx - 1) {
-        if ((MAT(IdxSigFi(ix, iz, 0, zone)) == SOLID && MAT(IdxSigFi(ix + 1, iz, 0, zone)) == SOLID) || 
-            MAT(IdxSigFi(ix, iz, 0, zone)) != MAT(IdxSigFi(ix + 1, iz, 0, zone))) {
+        if (MAT(IdxSigFi(ix, iz, 0, zone)) + MAT(IdxSigFi(ix + 1, iz, 0, zone)) <= 3) {
             dtxz_dz = dtxz_dz_8th(core.txz, ix, iz, cur, zone);
         } 
         dsx_dx = dsx_dx_8th(core.sx, ix, iz, cur, zone);
@@ -371,14 +512,32 @@ __global__ void update_velocity_fine(Core core, Model model, int cur, int zone) 
     }
 
     if (iz < fines[zone].lenz - 1) {
-        if ((MAT(IdxSigFi(ix, iz, 0, zone)) == SOLID && MAT(IdxSigFi(ix, iz + 1, 0, zone)) == SOLID) || 
-            MAT(IdxSigFi(ix, iz, 0, zone)) != MAT(IdxSigFi(ix, iz + 1, 0, zone))) {
+        if (MAT(IdxSigFi(ix, iz, 0, zone)) + MAT(IdxSigFi(ix, iz + 1, 0, zone)) <= 3) {
             dtxz_dx = dtxz_dx_8th(core.txz, ix, iz, cur, zone);
         } 
         dsz_dz = dsz_dz_8th(core.sz, ix, iz, cur, zone);
         core.vz[IdxVzFi(ix, iz, cur, zone)] = core.vz[IdxVzFi(ix, iz, cur ^ 1, zone)] + (
             dt_d / samp_rho_z_fine(model.rho, ix, iz, zone) * (dtxz_dx + dsz_dz)
         );
+    }
+}
+
+__global__ void apply_fluid_boundary_fine(Core core, int cur, int zone) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x;
+    int iz = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (ix >= fines[zone].lenx || iz >= fines[zone].lenz) {
+        return;
+    }
+    if (tex1Dfetch<int>(mat_tex, IdxSigFi(ix, iz, 0, zone)) == FLUID) {
+        core.txz[IdxTxzFi(ix, iz, cur, zone)] = 0;
+        core.txz[IdxTxzFi(max(0, ix - 1), iz, cur, zone)] = 0;
+        core.txz[IdxTxzFi(ix, max(0, iz - 1), cur, zone)] = 0;
+        core.txz[IdxTxzFi(max(0, ix - 1), max(0, iz - 1), cur, zone)] = 0;
+        core.rxz[IdxTxzFi(ix, iz, cur, zone)] = 0;
+        core.rxz[IdxTxzFi(max(0, ix - 1), iz, cur, zone)] = 0;
+        core.rxz[IdxTxzFi(ix, max(0, iz - 1), cur, zone)] = 0;
+        core.rxz[IdxTxzFi(max(0, ix - 1), max(0, iz - 1), cur, zone)] = 0;
     }
 }
 
@@ -697,6 +856,190 @@ __global__ void smooth_fine_rp(float *rp, float *temp, int cur, int zone, int lv
     }
     if (ix < fines[zone].lenx - 1 && iz < fines[zone].lenz - 1 && is_fluid(ix+1, iz+1)) {
         sum += coeff[lvl][2] * rp[IdxSigFi(ix+1, iz+1, cur, zone)];
+        total_weight += coeff[lvl][2];
+    }
+
+    temp[idx_dst] = sum / total_weight;
+}
+
+// 平滑记忆变量 rx（整网格，与 sx 同位置）
+__global__ void smooth_fine_rx(float *rx, float *temp, int cur, int zone, int lvl) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x;
+    int iz = blockIdx.y * blockDim.y + threadIdx.y;
+    if (ix >= fines[zone].lenx || iz >= fines[zone].lenz) return;
+
+    int idx_src = IdxSigFi(ix, iz, cur, zone);
+    int idx_dst = IdxSigFi(ix, iz, 0, zone) - sum_offset_fine_sig[0];
+
+    // 只处理 VESOLID 点
+    if (tex1Dfetch<int>(mat_tex, idx_src) != VESOLID) {
+        temp[idx_dst] = rx[idx_src];
+        return;
+    }
+
+    float sum = coeff[lvl][0] * rx[idx_src];
+    float total_weight = coeff[lvl][0];
+
+    auto is_vesolid = [&](int x, int y) -> bool {
+        if (x < 0 || x >= fines[zone].lenx || y < 0 || y >= fines[zone].lenz) return false;
+        return tex1Dfetch<int>(mat_tex, IdxSigFi(x, y, 0, zone)) == VESOLID;
+    };
+
+    // 正交邻点
+    if (iz > 0 && is_vesolid(ix, iz-1)) {
+        sum += coeff[lvl][1] * rx[IdxSigFi(ix, iz-1, cur, zone)];
+        total_weight += coeff[lvl][1];
+    }
+    if (iz < fines[zone].lenz - 1 && is_vesolid(ix, iz+1)) {
+        sum += coeff[lvl][1] * rx[IdxSigFi(ix, iz+1, cur, zone)];
+        total_weight += coeff[lvl][1];
+    }
+    if (ix > 0 && is_vesolid(ix-1, iz)) {
+        sum += coeff[lvl][1] * rx[IdxSigFi(ix-1, iz, cur, zone)];
+        total_weight += coeff[lvl][1];
+    }
+    if (ix < fines[zone].lenx - 1 && is_vesolid(ix+1, iz)) {
+        sum += coeff[lvl][1] * rx[IdxSigFi(ix+1, iz, cur, zone)];
+        total_weight += coeff[lvl][1];
+    }
+
+    // 对角邻点
+    if (ix > 0 && iz > 0 && is_vesolid(ix-1, iz-1)) {
+        sum += coeff[lvl][2] * rx[IdxSigFi(ix-1, iz-1, cur, zone)];
+        total_weight += coeff[lvl][2];
+    }
+    if (ix < fines[zone].lenx - 1 && iz > 0 && is_vesolid(ix+1, iz-1)) {
+        sum += coeff[lvl][2] * rx[IdxSigFi(ix+1, iz-1, cur, zone)];
+        total_weight += coeff[lvl][2];
+    }
+    if (ix > 0 && iz < fines[zone].lenz - 1 && is_vesolid(ix-1, iz+1)) {
+        sum += coeff[lvl][2] * rx[IdxSigFi(ix-1, iz+1, cur, zone)];
+        total_weight += coeff[lvl][2];
+    }
+    if (ix < fines[zone].lenx - 1 && iz < fines[zone].lenz - 1 && is_vesolid(ix+1, iz+1)) {
+        sum += coeff[lvl][2] * rx[IdxSigFi(ix+1, iz+1, cur, zone)];
+        total_weight += coeff[lvl][2];
+    }
+
+    temp[idx_dst] = sum / total_weight;
+}
+
+// 平滑记忆变量 rz（整网格，与 sx 同位置）
+__global__ void smooth_fine_rz(float *rz, float *temp, int cur, int zone, int lvl) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x;
+    int iz = blockIdx.y * blockDim.y + threadIdx.y;
+    if (ix >= fines[zone].lenx || iz >= fines[zone].lenz) return;
+
+    int idx_src = IdxSigFi(ix, iz, cur, zone);
+    int idx_dst = IdxSigFi(ix, iz, 0, zone) - sum_offset_fine_sig[0];
+
+    if (tex1Dfetch<int>(mat_tex, idx_src) != VESOLID) {
+        temp[idx_dst] = rz[idx_src];
+        return;
+    }
+
+    float sum = coeff[lvl][0] * rz[idx_src];
+    float total_weight = coeff[lvl][0];
+
+    auto is_vesolid = [&](int x, int z) -> bool {
+        if (x < 0 || x >= fines[zone].lenx || z < 0 || z >= fines[zone].lenz) return false;
+        return tex1Dfetch<int>(mat_tex, IdxSigFi(x, z, 0, zone)) == VESOLID;
+    };
+
+    // 正交邻点
+    if (iz > 0 && is_vesolid(ix, iz-1)) {
+        sum += coeff[lvl][1] * rz[IdxSigFi(ix, iz-1, cur, zone)];
+        total_weight += coeff[lvl][1];
+    }
+    if (iz < fines[zone].lenz - 1 && is_vesolid(ix, iz+1)) {
+        sum += coeff[lvl][1] * rz[IdxSigFi(ix, iz+1, cur, zone)];
+        total_weight += coeff[lvl][1];
+    }
+    if (ix > 0 && is_vesolid(ix-1, iz)) {
+        sum += coeff[lvl][1] * rz[IdxSigFi(ix-1, iz, cur, zone)];
+        total_weight += coeff[lvl][1];
+    }
+    if (ix < fines[zone].lenx - 1 && is_vesolid(ix+1, iz)) {
+        sum += coeff[lvl][1] * rz[IdxSigFi(ix+1, iz, cur, zone)];
+        total_weight += coeff[lvl][1];
+    }
+
+    // 对角邻点
+    if (ix > 0 && iz > 0 && is_vesolid(ix-1, iz-1)) {
+        sum += coeff[lvl][2] * rz[IdxSigFi(ix-1, iz-1, cur, zone)];
+        total_weight += coeff[lvl][2];
+    }
+    if (ix < fines[zone].lenx - 1 && iz > 0 && is_vesolid(ix+1, iz-1)) {
+        sum += coeff[lvl][2] * rz[IdxSigFi(ix+1, iz-1, cur, zone)];
+        total_weight += coeff[lvl][2];
+    }
+    if (ix > 0 && iz < fines[zone].lenz - 1 && is_vesolid(ix-1, iz+1)) {
+        sum += coeff[lvl][2] * rz[IdxSigFi(ix-1, iz+1, cur, zone)];
+        total_weight += coeff[lvl][2];
+    }
+    if (ix < fines[zone].lenx - 1 && iz < fines[zone].lenz - 1 && is_vesolid(ix+1, iz+1)) {
+        sum += coeff[lvl][2] * rz[IdxSigFi(ix+1, iz+1, cur, zone)];
+        total_weight += coeff[lvl][2];
+    }
+
+    temp[idx_dst] = sum / total_weight;
+}
+
+__global__ void smooth_fine_rxz(float *rxz, float *temp, int cur, int zone, int lvl) {
+    int ix = blockIdx.x * blockDim.x + threadIdx.x;
+    int iz = blockIdx.y * blockDim.y + threadIdx.y;
+    if (ix >= fines[zone].lenx - 1 || iz >= fines[zone].lenz - 1) return;
+
+    int idx_src = IdxTxzFi(ix, iz, cur, zone);
+    int idx_dst = IdxTxzFi(ix, iz, 0, zone) - sum_offset_fine_txz[0];
+
+    float sum = coeff[lvl][0] * rxz[idx_src];
+    float total_weight = coeff[lvl][0];
+
+    auto is_vesolid_txz = [&](int x, int z) -> bool {
+        if (x < 0 || x >= fines[zone].lenx - 1 || z < 0 || z >= fines[zone].lenz - 1) return false;
+        return MAT(IdxSigFi(x, z, 0, zone)) == VESOLID || MAT(IdxSigFi(x + 1, z, 0, zone)) == VESOLID || 
+               MAT(IdxSigFi(x, z + 1, 0, zone)) == VESOLID || MAT(IdxSigFi(x + 1, z + 1, 0, zone)) == VESOLID;
+    };
+
+    if (!is_vesolid_txz(ix, iz)) {
+        temp[idx_dst] = rxz[idx_src];
+        return;
+    }
+
+    // 正交邻点
+    if (iz > 0 && is_vesolid_txz(ix, iz-1)) {
+        sum += coeff[lvl][1] * rxz[IdxTxzFi(ix, iz-1, cur, zone)];
+        total_weight += coeff[lvl][1];
+    }
+    if (iz < fines[zone].lenz - 2 && is_vesolid_txz(ix, iz+1)) {
+        sum += coeff[lvl][1] * rxz[IdxTxzFi(ix, iz+1, cur, zone)];
+        total_weight += coeff[lvl][1];
+    }
+    if (ix > 0 && is_vesolid_txz(ix-1, iz)) {
+        sum += coeff[lvl][1] * rxz[IdxTxzFi(ix-1, iz, cur, zone)];
+        total_weight += coeff[lvl][1];
+    }
+    if (ix < fines[zone].lenx - 2 && is_vesolid_txz(ix+1, iz)) {
+        sum += coeff[lvl][1] * rxz[IdxTxzFi(ix+1, iz, cur, zone)];
+        total_weight += coeff[lvl][1];
+    }
+
+    // 对角邻点
+    if (ix > 0 && iz > 0 && is_vesolid_txz(ix-1, iz-1)) {
+        sum += coeff[lvl][2] * rxz[IdxTxzFi(ix-1, iz-1, cur, zone)];
+        total_weight += coeff[lvl][2];
+    }
+    if (ix < fines[zone].lenx - 2 && iz > 0 && is_vesolid_txz(ix+1, iz-1)) {
+        sum += coeff[lvl][2] * rxz[IdxTxzFi(ix+1, iz-1, cur, zone)];
+        total_weight += coeff[lvl][2];
+    }
+    if (ix > 0 && iz < fines[zone].lenz - 2 && is_vesolid_txz(ix-1, iz+1)) {
+        sum += coeff[lvl][2] * rxz[IdxTxzFi(ix-1, iz+1, cur, zone)];
+        total_weight += coeff[lvl][2];
+    }
+    if (ix < fines[zone].lenx - 2 && iz < fines[zone].lenz - 2 && is_vesolid_txz(ix+1, iz+1)) {
+        sum += coeff[lvl][2] * rxz[IdxTxzFi(ix+1, iz+1, cur, zone)];
         total_weight += coeff[lvl][2];
     }
 

@@ -9,9 +9,27 @@
     "C13": "models/coarse/C13.bin",
     "C33": "models/coarse/C33.bin",
     "C55": "models/coarse/C55.bin",
-    "tau": "models/coarse/tau.bin",
+    "taup": "models/coarse/taup.bin",
+    "taus": "models/coarse/taus.bin",
     "material": "models/coarse/material.bin",
-    "inv_taus": "models/coarse/inv_tau_sigma.bin"
+    "inv_tsig": "models/coarse/inv_tsig.bin"
   },
-  "fine": []
+  "fine": [
+    {
+      "x_start": 300,
+      "x_end": 400,
+      "z_start": 300,
+      "z_end": 400,
+      "N": 9,
+      "rho": "models/fine/0/rho.bin",
+      "C11": "models/fine/0/C11.bin",
+      "C13": "models/fine/0/C13.bin",
+      "C33": "models/fine/0/C33.bin",
+      "C55": "models/fine/0/C55.bin",
+      "taup": "models/fine/0/taup.bin",
+      "taus": "models/fine/0/taus.bin",
+      "inv_tsig": "models/fine/0/inv_tsig.bin",
+      "material": "models/fine/0/material.bin"
+    }
+  ]
 }

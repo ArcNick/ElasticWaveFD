@@ -360,7 +360,7 @@ def main():
                 os.path.join(RECORD_DIR, f),
                 os.path.join(IMAGE_BASE, 'record', f.replace('.bin', '_cmap.png')),
                 nx_tot, dt, model['coarse']['dx'], pml,
-                ftype=ftype, skip=1, gain=1e3, out_dt=0.0005, fixed_limit=2.0
+                ftype=ftype, skip=1, gain=5e2, out_dt=0.0005, fixed_limit=2.0
             )
 
     # 波场快照（并行）

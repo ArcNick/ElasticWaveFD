@@ -9,7 +9,7 @@
 #define LAGRANGE_ORDER 8
 
 enum FINE_FLAG { FINE_OFF = 0, FINE_ON = 1 };
-enum MAT_FLAG { SOLID = 0, FLUID = 1 };
+enum MAT_FLAG { SOLID = 0, VESOLID = 1, FLUID = 2 };
 
 struct FD_n {
     int n_x;
@@ -17,20 +17,25 @@ struct FD_n {
 };
 
 struct Mask {
-    int *vx;
-    int *vz;
-    int *sig;
-    int *txz;
+    int *vx = nullptr;
+    int *vz = nullptr;
+    int *sig = nullptr;
+    int *txz = nullptr;
 };
 
 struct Core {
-    float *vx;
-    float *vz;
-    float *p;
-    float *sx;
-    float *sz;
-    float *txz;
-    float *r;
+    float *vx = nullptr;
+    float *vz = nullptr;
+
+    float *sx = nullptr;
+    float *sz = nullptr;
+    float *txz = nullptr;
+    float *rx = nullptr;
+    float *rz = nullptr;
+    float *rxz = nullptr;
+
+    float *p = nullptr;
+    float *rp = nullptr;
 };
 
 struct Model {
@@ -39,8 +44,9 @@ struct Model {
     float *C13 = nullptr;
     float *C33 = nullptr;
     float *C55 = nullptr;
-    float *tau = nullptr;
-    float *inv_taus = nullptr;
+    float *taup = nullptr;
+    float *taus = nullptr;
+    float *inv_tsig = nullptr;
     MAT_FLAG *mat = nullptr;
 };
 
@@ -77,7 +83,10 @@ public:
     Core core_h, core_d, core_temp;
     Model model_h, model_d;
 
-    FD_n *vx_n, *vz_n, *sig_n, *txz_n;
+    FD_n *vx_n = nullptr;
+    FD_n *vz_n = nullptr;
+    FD_n *sig_n = nullptr;
+    FD_n *txz_n = nullptr;
 
     std::vector<FineInfo> fine_info;
 
@@ -136,11 +145,11 @@ extern float dx_host_coarse, dz_host_coarse;
 extern int nx_host_coarse, nz_host_coarse;
 
 extern __constant__ int num_fine;
-extern __constant__ FineInfo fines[12];
-extern __constant__ int sum_offset_fine_vx[12];
-extern __constant__ int sum_offset_fine_vz[12];
-extern __constant__ int sum_offset_fine_sig[12];
-extern __constant__ int sum_offset_fine_txz[12];
+extern __constant__ FineInfo fines[8];
+extern __constant__ int sum_offset_fine_vx[8];
+extern __constant__ int sum_offset_fine_vz[8];
+extern __constant__ int sum_offset_fine_sig[8];
+extern __constant__ int sum_offset_fine_txz[8];
 
 extern __constant__ float lagrange_coeff[LUT_SIZE * LAGRANGE_ORDER];
 

@@ -27,204 +27,71 @@ __device__ int IdxTxzFi(int ix, int iz, int time, int zone) {
     return iz * (fines[zone].lenx - 1) + ix + time * offset_txz_all + sum_offset_fine_txz[zone];
 }
 
-__device__ float samp_rho_x(
-    float *f, int ix, int iz
-) {
-    float sum = 0;
-    int zone;
-    int ix_fine;
-    int iz_fine;
-
-    zone = tex1Dfetch<int>(sig_mask, iz * nx + ix);
-    if (zone == -1) {
-        sum += f[iz * nx + ix];
-    } else {
-        ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
-        iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
-    }
-
-    zone = tex1Dfetch<int>(sig_mask, iz * nx + ix + 1);
-    if (zone == -1) {
-        sum += f[iz * nx + ix + 1];
-    } else {
-        ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
-        iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
-    }
-
-    return sum * 0.5;
-}
-
-__device__ float samp_rho_z(
-    float *f, int ix, int iz
-) {
-    float sum = 0;
-    int zone;
-    int ix_fine;
-    int iz_fine;
-
-    zone = tex1Dfetch<int>(sig_mask, iz * nx + ix);
-    if (zone == -1) {
-        sum += f[iz * nx + ix];
-    } else {
-        ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
-        iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
-    }
-
-    zone = tex1Dfetch<int>(sig_mask, (iz + 1) * nx + ix);
-    if (zone == -1) {
-        sum += f[(iz + 1) * nx + ix];
-    } else {
-        ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
-        iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
-        sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
-    }
-
-    return sum * 0.5;
-}
-
-__device__ float samp_C55(
-    float *f, int ix, int iz
-) {
-    float sum = 0;
-    int zone;
-    int ix_fine;
-    int iz_fine;
-
-    zone = tex1Dfetch<int>(sig_mask, iz * nx + ix);
-    if (zone == -1) {
-        sum += f[iz * nx + ix];
-    } else {
-        ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
-        iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
-    }
-
-    zone = tex1Dfetch<int>(sig_mask, (iz + 1) * nx + ix);
-    if (zone == -1) {
-        sum += f[(iz + 1) * nx + ix];
-    } else {
-        ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
-        iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
-        sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
-    }
-
-    zone = tex1Dfetch<int>(sig_mask, iz * nx + ix + 1);
-    if (zone == -1) {
-        sum += f[iz * nx + ix + 1];
-    } else {
-        ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
-        iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
-    }
-
-    zone = tex1Dfetch<int>(sig_mask, (iz + 1) * nx + ix + 1);
-    if (zone == -1) {
-        sum += f[(iz + 1) * nx + ix + 1];
-    } else {
-        ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
-        iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
-        sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
-    }
-
-    return sum * 0.25;
-}
-
 // interpolation
 __device__ float samp_rho_x_coarse(float *f, int ix, int iz) {
     float val1 = 0;
     float val2 = 0;
-    int type1 = 0;
-    int type2 = 0;
     int zone;
     int ix_fine;
     int iz_fine;
     zone = tex1Dfetch<int>(sig_mask, iz * nx + ix);
     if (zone == -1) {
         val1 = f[iz * nx + ix];
-        type1 = tex1Dfetch<int>(mat_tex, iz * nx + ix);
     } else {
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
         val1 = f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
-        type1 = tex1Dfetch<int>(mat_tex, IdxSigFi(ix_fine, iz_fine, 0, zone));
     }
 
     zone = tex1Dfetch<int>(sig_mask, iz * nx + ix + 1);
     if (zone == -1) {
         val2 = f[iz * nx + ix + 1];
-        type2 = tex1Dfetch<int>(mat_tex, iz * nx + ix + 1);
     } else {
         ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
         val2 = f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
-        type2 = tex1Dfetch<int>(mat_tex, IdxSigFi(ix_fine, iz_fine, 0, zone));
     }
     
-    if (type1 != type2) {
-        return 2 / (1 / val1 + 1 / val2);
-    } else {
-        return 0.5 * (val1 + val2);
-    }
+    return 2 / (1 / val1 + 1 / val2);
 }
 
 __device__ float samp_rho_z_coarse(float *f, int ix, int iz) {
     float val1 = 0;
     float val2 = 0;
-    int type1 = 0;
-    int type2 = 0;
     int zone;
     int ix_fine;
     int iz_fine;
     zone = tex1Dfetch<int>(sig_mask, iz * nx + ix);
     if (zone == -1) {
         val1 = f[iz * nx + ix];
-        type1 = tex1Dfetch<int>(mat_tex, iz * nx + ix);
     } else {
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
         val1 = f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
-        type1 = tex1Dfetch<int>(mat_tex, IdxSigFi(ix_fine, iz_fine, 0, zone));
     }
 
     zone = tex1Dfetch<int>(sig_mask, (iz + 1) * nx + ix);
     if (zone == -1) {
         val2 = f[(iz + 1) * nx + ix];
-        type2 = tex1Dfetch<int>(mat_tex, (iz + 1) * nx + ix);
     } else {
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
         val2 = f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
-        type2 = tex1Dfetch<int>(mat_tex, IdxSigFi(ix_fine, iz_fine, 0, zone));
     }
     
-    if (type1 != type2) {
-        return 2 / (1 / val1 + 1 / val2);
-    } else {
-        return 0.5 * (val1 + val2);
-    }
+    return 2 / (1 / val1 + 1 / val2);
 }
 
 __device__ float samp_rho_x_fine(float *f, int ix, int iz, int zone) {
     float val1 = f[IdxSigFi(ix, iz, 0, zone)];
     float val2 = f[IdxSigFi(ix + 1, iz, 0, zone)];
-    if (MAT(IdxSigFi(ix, iz, 0, zone)) != MAT(IdxSigFi(ix + 1, iz, 0, zone))) {
-        return 2 / (1 / val1 + 1 / val2);
-    } else {
-        return 0.5 * (val1 + val2);
-    }
+    return 2 / (1 / val1 + 1 / val2);
 }
 
 __device__ float samp_rho_z_fine(float *f, int ix, int iz, int zone) {
     float val1 = f[IdxSigFi(ix, iz, 0, zone)];
     float val2 = f[IdxSigFi(ix, iz + 1, 0, zone)];
-    if (MAT(IdxSigFi(ix, iz, 0, zone)) != MAT(IdxSigFi(ix, iz + 1, 0, zone))) {
-        return 2 / (1 / val1 + 1 / val2);
-    } else {
-        return 0.5 * (val1 + val2);
-    }
+    return 2 / (1 / val1 + 1 / val2);
 }
 
 __device__ float samp_C55_coarse(
@@ -232,90 +99,215 @@ __device__ float samp_C55_coarse(
 ) {
     float sum = 0;
     int zone;
-    int cnt = 0;
     int ix_fine;
     int iz_fine;
 
     zone = tex1Dfetch<int>(sig_mask, iz * nx + ix);
     if (zone == -1) {
-        if (tex1Dfetch<int>(mat_tex, iz * nx + ix) == SOLID) {
+        if (MAT(iz * nx + ix) <= VESOLID) {
             sum += f[iz * nx + ix];
-            cnt++;
+        } else {
+            return 0;
         }
     } else {
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        if (tex1Dfetch<int>(mat_tex, IdxSigFi(ix_fine, iz_fine, 0, zone)) == SOLID) {
+        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) <= VESOLID) {
             sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
-            cnt++;
+        } else {
+            return 0;
         }
     }
 
     zone = tex1Dfetch<int>(sig_mask, (iz + 1) * nx + ix);
     if (zone == -1) {
-        if (tex1Dfetch<int>(mat_tex, (iz + 1) * nx + ix) == SOLID) {
+        if (MAT((iz + 1) * nx + ix) <= VESOLID) {
             sum += f[(iz + 1) * nx + ix];
-            cnt++;
+        } else {
+            return 0;
         }
     } else {
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
-        if (tex1Dfetch<int>(mat_tex, IdxSigFi(ix_fine, iz_fine, 0, zone)) == SOLID) {
+        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) <= VESOLID) {
             sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
-            cnt++;
+        } else {
+            return 0;
         }
     }
 
     zone = tex1Dfetch<int>(sig_mask, iz * nx + ix + 1);
     if (zone == -1) {
-        if (tex1Dfetch<int>(mat_tex, iz * nx + ix + 1) == SOLID) {
+        if (MAT(iz * nx + ix + 1) <= VESOLID) {
             sum += f[iz * nx + ix + 1];
-            cnt++;
+        } else {
+            return 0;
         }
     } else {
         ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        if (tex1Dfetch<int>(mat_tex, IdxSigFi(ix_fine, iz_fine, 0, zone)) == SOLID) {
+        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) <= VESOLID) {
             sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
-            cnt++;
+        } else {
+            return 0;
         }
     }
 
     zone = tex1Dfetch<int>(sig_mask, (iz + 1) * nx + ix + 1);
     if (zone == -1) {
-        if (tex1Dfetch<int>(mat_tex, (iz + 1) * nx + ix + 1) == SOLID) {
+        if (MAT((iz + 1) * nx + ix + 1) <= VESOLID) {
             sum += f[(iz + 1) * nx + ix + 1];
-            cnt++;
+        } else {
+            return 0;
         }
     } else {
         ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
-        if (tex1Dfetch<int>(mat_tex, IdxSigFi(ix_fine, iz_fine, 0, zone)) == SOLID) {
+        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) <= VESOLID) {
+            sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+        } else {
+            return 0;
+        }
+    }
+    return 0.25 * sum;
+}
+
+__device__ float samp_C55_fine(float *f, int ix, int iz, int zone) {
+    float sum = 0;
+    if (MAT(IdxSigFi(ix, iz, 0, zone)) <= VESOLID) {
+        sum += f[IdxSigFi(ix, iz, 0, zone)];
+    } else {
+        return 0;
+    }
+    if (MAT(IdxSigFi(ix + 1, iz, 0, zone)) <= VESOLID) {
+        sum += f[IdxSigFi(ix + 1, iz, 0, zone)];
+    } else {
+        return 0;
+    }
+    if (MAT(IdxSigFi(ix, iz + 1, 0, zone)) <= VESOLID) {
+        sum += f[IdxSigFi(ix, iz + 1, 0, zone)];
+    } else {
+        return 0;
+    }
+    if (MAT(IdxSigFi(ix + 1, iz + 1, 0, zone)) <= VESOLID) {
+        sum += f[IdxSigFi(ix + 1, iz + 1, 0, zone)];
+    } else {
+        return 0;
+    }
+    return 0.25 * sum;
+}
+
+
+__device__ float samp_taus_coarse(float *f, int ix, int iz) {
+    float sum = 0;
+    int cnt = 0;
+    int zone;
+    int ix_fine;
+    int iz_fine;
+
+    zone = tex1Dfetch<int>(sig_mask, iz * nx + ix);
+    if (zone == -1) {
+        if (MAT(iz * nx + ix) == VESOLID) {
+            sum += f[iz * nx + ix];
+            cnt++;
+        } else {
+            return 0;
+        }
+    } else {
+        ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
+        iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
+        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) == VESOLID) {
             sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
             cnt++;
+        } else {
+            return 0;
+        }
+    }
+
+    zone = tex1Dfetch<int>(sig_mask, (iz + 1) * nx + ix);
+    if (zone == -1) {
+        if (MAT((iz + 1) * nx + ix) == VESOLID) {
+            sum += f[(iz + 1) * nx + ix];
+            cnt++;
+        } else {
+            return 0;
+        }
+    } else {
+        ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
+        iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
+        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) == VESOLID) {
+            sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+            cnt++;
+        } else {
+            return 0;
+        }
+    }
+
+    zone = tex1Dfetch<int>(sig_mask, iz * nx + ix + 1);
+    if (zone == -1) {
+        if (MAT(iz * nx + ix + 1) == VESOLID) {
+            sum += f[iz * nx + ix + 1];
+            cnt++;
+        } else {
+            return 0;
+        }
+    } else {
+        ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
+        iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
+        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) == VESOLID) {
+            sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+            cnt++;
+        } else {
+            return 0;
+        }
+    }
+
+    zone = tex1Dfetch<int>(sig_mask, (iz + 1) * nx + ix + 1);
+    if (zone == -1) {
+        if (MAT((iz + 1) * nx + ix + 1) == VESOLID) {
+            sum += f[(iz + 1) * nx + ix + 1];
+            cnt++;
+        } else {
+            return 0;
+        }
+    } else {
+        ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
+        iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
+        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) == VESOLID) {
+            sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+            cnt++;
+        } else {
+            return 0;
         }
     }
     return sum / cnt;
 }
-
-__device__ float samp_C55_fine(float *f, int ix, int iz, int zone) {
-    int cnt = 0;
+__device__ float samp_taus_fine(float *f, int ix, int iz, int zone) {
     float sum = 0;
-    if (tex1Dfetch<int>(mat_tex, IdxSigFi(ix, iz, 0, zone)) == SOLID) {
-        cnt++;
+    int cnt = 0;
+    if (MAT(IdxSigFi(ix, iz, 0, zone)) == VESOLID) {
         sum += f[IdxSigFi(ix, iz, 0, zone)];
-    }
-    if (tex1Dfetch<int>(mat_tex, IdxSigFi(ix + 1, iz, 0, zone)) == SOLID) {
         cnt++;
+    } else {
+        return 0;
+    }
+    if (MAT(IdxSigFi(ix + 1, iz, 0, zone)) == VESOLID) {
         sum += f[IdxSigFi(ix + 1, iz, 0, zone)];
-    }
-    if (tex1Dfetch<int>(mat_tex, IdxSigFi(ix, iz + 1, 0, zone)) == SOLID) {
         cnt++;
+    } else {
+        return 0;
+    }
+    if (MAT(IdxSigFi(ix, iz + 1, 0, zone)) == VESOLID) {
         sum += f[IdxSigFi(ix, iz + 1, 0, zone)];
-    }
-    if (tex1Dfetch<int>(mat_tex, IdxSigFi(ix + 1, iz + 1, 0, zone)) == SOLID) {
         cnt++;
+    } else {
+        return 0;
+    }
+    if (MAT(IdxSigFi(ix + 1, iz + 1, 0, zone)) == VESOLID) {
         sum += f[IdxSigFi(ix + 1, iz + 1, 0, zone)];
+        cnt++;
+    } else {
+        return 0;
     }
     return sum / cnt;
 }
@@ -1174,4 +1166,3 @@ __device__ float dtxz_dz_8th(
     }
     return sum / fines[zone].dz_fine;
 }
-

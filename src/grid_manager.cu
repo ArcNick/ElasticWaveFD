@@ -6,8 +6,6 @@
 #include <cstring>
 #include <algorithm>
 
-
-
 // 设备端全局符号定义
 __device__ cudaTextureObject_t vx_mask;
 __device__ cudaTextureObject_t vz_mask;
@@ -28,11 +26,11 @@ __constant__ int offset_sig_all;
 __constant__ int offset_txz_all;
 
 __constant__ int num_fine;
-__constant__ FineInfo fines[12];
-__constant__ int sum_offset_fine_vx[12];
-__constant__ int sum_offset_fine_vz[12];
-__constant__ int sum_offset_fine_sig[12];
-__constant__ int sum_offset_fine_txz[12];
+__constant__ FineInfo fines[8];
+__constant__ int sum_offset_fine_vx[8];
+__constant__ int sum_offset_fine_vz[8];
+__constant__ int sum_offset_fine_sig[8];
+__constant__ int sum_offset_fine_txz[8];
 
 __constant__ float lagrange_coeff[LUT_SIZE * LAGRANGE_ORDER];
 
@@ -107,16 +105,16 @@ void GridManager::load_from_file(const std::string &file) {
     memory_allocate();
 
     // 读取模型参数文件
-    struct Pair { void *ptr; std::string name; } dst[8] = {
+    struct Pair { void *ptr; std::string name; } dst[9] = {
         { model_h.rho, "rho" }, { model_h.C11, "C11" }, { model_h.C13, "C13" },
-        { model_h.C33, "C33" }, { model_h.C55, "C55" }, { model_h.tau, "tau"}, 
-        { model_h.inv_taus, "inv_taus"}, { model_h.mat, "material"}
+        { model_h.C33, "C33" }, { model_h.C55, "C55" }, { model_h.inv_tsig, "inv_tsig"},
+        { model_h.taup, "taup"}, {model_h.taus, "taus"}, { model_h.mat, "material"}
     };
     std::string filename;
 
     cJSON *item = nullptr;
     // coarse
-    for (int i = 0; i < 8; i++) {
+    for (int i = 0; i < 9; i++) {
         item = coarse_ptr;
         item = cJSON_GetObjectItem(item, dst[i].name.c_str());
         filename = item->valuestring;
@@ -132,10 +130,10 @@ void GridManager::load_from_file(const std::string &file) {
         }
         fclose(fp);
     }
-
+    
     // fine
     for (int i = 0, offset = nx_coarse * nz_coarse; i < num; i++, offset += fine_info[i].lenx * fine_info[i].lenz) {
-        for (int j = 0; j < 8; j++) {
+        for (int j = 0; j < 9; j++) {
             item = fine_ptr;
             item = cJSON_GetArrayItem(item, i);
             item = cJSON_GetObjectItem(item, dst[j].name.c_str());
@@ -186,8 +184,9 @@ void GridManager::memcpy_model_h2d() {
     cudaMemcpy(model_d.C13, model_h.C13, bytes_sig, cudaMemcpyHostToDevice);
     cudaMemcpy(model_d.C33, model_h.C33, bytes_sig, cudaMemcpyHostToDevice);
     cudaMemcpy(model_d.C55, model_h.C55, bytes_sig, cudaMemcpyHostToDevice);
-    cudaMemcpy(model_d.tau, model_h.tau, bytes_sig, cudaMemcpyHostToDevice);
-    cudaMemcpy(model_d.inv_taus, model_h.inv_taus, bytes_sig, cudaMemcpyHostToDevice);
+    cudaMemcpy(model_d.taup, model_h.taup, bytes_sig, cudaMemcpyHostToDevice);
+    cudaMemcpy(model_d.taus, model_h.taus, bytes_sig, cudaMemcpyHostToDevice);
+    cudaMemcpy(model_d.inv_tsig, model_h.inv_tsig, bytes_sig, cudaMemcpyHostToDevice);
     cudaMemcpy(model_d.mat, model_h.mat, bytes_mat, cudaMemcpyHostToDevice);
 }
 
@@ -238,7 +237,7 @@ void GridManager::build_texture() {
     cudaMemcpy(core_mask.vz, vz_mask_h, bytes_vz_mask, cudaMemcpyHostToDevice);
     cudaMemcpy(core_mask.sig, sig_mask_h, bytes_sig_mask, cudaMemcpyHostToDevice);
     cudaMemcpy(core_mask.txz, txz_mask_h, bytes_txz_mask, cudaMemcpyHostToDevice);
-    // 创建纹理对象并保存到成员变量
+
     cudaResourceDesc resDesc;
     memset(&resDesc, 0, sizeof(resDesc));
     resDesc.resType = cudaResourceTypeLinear;
@@ -276,7 +275,7 @@ void GridManager::build_texture() {
     cudaCreateTextureObject(&tex_txz_mask, &resDesc, &texDesc, NULL);
     cudaMemcpyToSymbol(txz_mask, &tex_txz_mask, sizeof(cudaTextureObject_t));
 
-    // mat
+    // material
     resDesc.res.linear.devPtr = model_d.mat;
     resDesc.res.linear.sizeInBytes = bytes_mat_mask;
     cudaCreateTextureObject(&tex_mat, &resDesc, &texDesc, NULL);
@@ -445,36 +444,57 @@ void GridManager::memory_allocate() {
     // device core (2 time layers)
     cudaMalloc((void**)&core_d.vx, offset_time_vx * sizeof(float) * 2);
     cudaMalloc((void**)&core_d.vz, offset_time_vz * sizeof(float) * 2);
-    cudaMalloc((void**)&core_d.p, offset_time_sig * sizeof(float) * 2);
+
     cudaMalloc((void**)&core_d.sx, offset_time_sig * sizeof(float) * 2);
     cudaMalloc((void**)&core_d.sz, offset_time_sig * sizeof(float) * 2);
     cudaMalloc((void**)&core_d.txz, offset_time_txz * sizeof(float) * 2);
-    cudaMalloc((void**)&core_d.r, offset_time_sig * sizeof(float) * 2);
+    cudaMalloc((void**)&core_d.rx, offset_time_sig * sizeof(float) * 2);
+    cudaMalloc((void**)&core_d.rz, offset_time_sig * sizeof(float) * 2);
+    cudaMalloc((void**)&core_d.rxz, offset_time_txz * sizeof(float) * 2);
+
+    cudaMalloc((void**)&core_d.p, offset_time_sig * sizeof(float) * 2);
+    cudaMalloc((void**)&core_d.rp, offset_time_sig * sizeof(float) * 2);
+
 
     cudaMemset(core_d.vx, 0, offset_time_vx * sizeof(float) * 2);
     cudaMemset(core_d.vz, 0, offset_time_vz * sizeof(float) * 2);
-    cudaMemset(core_d.p, 0, offset_time_sig * sizeof(float) * 2);
+
     cudaMemset(core_d.sx, 0, offset_time_sig * sizeof(float) * 2);
     cudaMemset(core_d.sz, 0, offset_time_sig * sizeof(float) * 2);
     cudaMemset(core_d.txz, 0, offset_time_txz * sizeof(float) * 2);
-    cudaMemset(core_d.r, 0, offset_time_sig * sizeof(float) * 2);
+    cudaMemset(core_d.rx, 0, offset_time_sig * sizeof(float) * 2);
+    cudaMemset(core_d.rz, 0, offset_time_sig * sizeof(float) * 2);
+    cudaMemset(core_d.rxz, 0, offset_time_txz * sizeof(float) * 2);
+
+    cudaMemset(core_d.p, 0, offset_time_sig * sizeof(float) * 2);
+    cudaMemset(core_d.rp, 0, offset_time_sig * sizeof(float) * 2);
 
     // device temp core (1 time layer)
     cudaMalloc((void**)&core_temp.vx, (offset_time_vx - offset_coarse_vx) * sizeof(float));
     cudaMalloc((void**)&core_temp.vz, (offset_time_vz - offset_coarse_vz) * sizeof(float));
+
     cudaMalloc((void**)&core_temp.sx, (offset_time_sig - offset_coarse_sig) * sizeof(float));
     cudaMalloc((void**)&core_temp.sz, (offset_time_sig - offset_coarse_sig) * sizeof(float));
     cudaMalloc((void**)&core_temp.txz, (offset_time_txz - offset_coarse_txz) * sizeof(float));
-    cudaMalloc((void**)&core_temp.r, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMalloc((void**)&core_temp.rx, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMalloc((void**)&core_temp.rz, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMalloc((void**)&core_temp.rxz, (offset_time_txz - offset_coarse_txz) * sizeof(float));
+
+    cudaMalloc((void**)&core_temp.rp, (offset_time_sig - offset_coarse_sig) * sizeof(float));
     cudaMalloc((void**)&core_temp.p, (offset_time_sig - offset_coarse_sig) * sizeof(float));
 
     cudaMemset(core_temp.vx, 0, (offset_time_vx - offset_coarse_vx) * sizeof(float));
     cudaMemset(core_temp.vz, 0, (offset_time_vz - offset_coarse_vz) * sizeof(float));
-    cudaMemset(core_temp.p, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+
     cudaMemset(core_temp.sx, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
     cudaMemset(core_temp.sz, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
     cudaMemset(core_temp.txz, 0, (offset_time_txz - offset_coarse_txz) * sizeof(float));
-    cudaMemset(core_temp.r, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMemset(core_temp.rx, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMemset(core_temp.rz, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMemset(core_temp.rxz, 0, (offset_time_txz - offset_coarse_txz) * sizeof(float));
+
+    cudaMemset(core_temp.p, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMemset(core_temp.rp, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
 
     // mask arrays (device)
     cudaMalloc((void**)&core_mask.vx, (nx_coarse - 1) * nz_coarse * sizeof(int));
@@ -488,8 +508,9 @@ void GridManager::memory_allocate() {
     model_h.C13 = new float[offset_time_sig]();
     model_h.C33 = new float[offset_time_sig]();
     model_h.C55 = new float[offset_time_sig]();
-    model_h.tau = new float[offset_time_sig]();
-    model_h.inv_taus = new float[offset_time_sig]();
+    model_h.taup = new float[offset_time_sig]();
+    model_h.taus = new float[offset_time_sig]();
+    model_h.inv_tsig = new float[offset_time_sig]();
     model_h.mat = new MAT_FLAG[offset_time_sig]();
 
     // device model
@@ -498,8 +519,9 @@ void GridManager::memory_allocate() {
     cudaMalloc((void**)&model_d.C13, offset_time_sig * sizeof(float));
     cudaMalloc((void**)&model_d.C33, offset_time_sig * sizeof(float));
     cudaMalloc((void**)&model_d.C55, offset_time_sig * sizeof(float));
-    cudaMalloc((void**)&model_d.tau, offset_time_sig * sizeof(float));
-    cudaMalloc((void**)&model_d.inv_taus, offset_time_sig * sizeof(float));
+    cudaMalloc((void**)&model_d.taup, offset_time_sig * sizeof(float));
+    cudaMalloc((void**)&model_d.taus, offset_time_sig * sizeof(float));
+    cudaMalloc((void**)&model_d.inv_tsig, offset_time_sig * sizeof(float));
     cudaMalloc((void**)&model_d.mat, offset_time_sig * sizeof(MAT_FLAG));
 
     // compute n arrays total size
@@ -546,6 +568,11 @@ void GridManager::memory_release() {
     if (core_h.sx) { delete[] core_h.sx; core_h.sx = nullptr; }
     if (core_h.sz) { delete[] core_h.sz; core_h.sz = nullptr; }
     if (core_h.txz) { delete[] core_h.txz; core_h.txz = nullptr; }
+    if (core_h.rx) { delete[] core_h.rx; core_h.rx = nullptr; }
+    if (core_h.rz) { delete[] core_h.rz; core_h.rz = nullptr; }
+    if (core_h.rxz) { delete[] core_h.rxz; core_h.rxz = nullptr; }
+    if (core_h.p) { delete[] core_h.p; core_h.p = nullptr; }
+    if (core_h.rp) { delete[] core_h.rp; core_h.rp = nullptr; }
 
     // device core
     if (core_d.vx) { cudaFree(core_d.vx); core_d.vx = nullptr; }
@@ -554,15 +581,21 @@ void GridManager::memory_release() {
     if (core_d.sz) { cudaFree(core_d.sz); core_d.sz = nullptr; }
     if (core_d.txz) { cudaFree(core_d.txz); core_d.txz = nullptr; }
     if (core_d.p) { cudaFree(core_d.p); core_d.p = nullptr; }
-    if (core_d.r) { cudaFree(core_d.r); core_d.r = nullptr; }
+    if (core_d.rp) { cudaFree(core_d.rp); core_d.rp = nullptr; }
+    if (core_d.rx) { cudaFree(core_d.rx); core_d.rx = nullptr; }
+    if (core_d.rz) { cudaFree(core_d.rz); core_d.rz = nullptr; }
+    if (core_d.rxz) { cudaFree(core_d.rxz); core_d.rxz = nullptr; }
 
     if (core_temp.vx) { cudaFree(core_temp.vx); core_temp.vx = nullptr; }
     if (core_temp.vz) { cudaFree(core_temp.vz); core_temp.vz = nullptr; }
     if (core_temp.sx) { cudaFree(core_temp.sx); core_temp.sx = nullptr; }
     if (core_temp.sz) { cudaFree(core_temp.sz); core_temp.sz = nullptr; }
     if (core_temp.txz) { cudaFree(core_temp.txz); core_temp.txz = nullptr; }
-    if (core_temp.r) { cudaFree(core_temp.r); core_temp.r = nullptr; }
+    if (core_temp.rp) { cudaFree(core_temp.rp); core_temp.rp = nullptr; }
     if (core_temp.p) { cudaFree(core_temp.p); core_temp.p = nullptr; }
+    if (core_temp.rx) { cudaFree(core_temp.rx); core_temp.rx = nullptr; }
+    if (core_temp.rz) { cudaFree(core_temp.rz); core_temp.rz = nullptr; }
+    if (core_temp.rxz) { cudaFree(core_temp.rxz); core_temp.rxz = nullptr; }
 
     // mask arrays (device)
     if (core_mask.vx) { cudaFree(core_mask.vx); core_mask.vx = nullptr; }
@@ -576,8 +609,9 @@ void GridManager::memory_release() {
     if (model_h.C13) { delete[] model_h.C13; model_h.C13 = nullptr; }
     if (model_h.C33) { delete[] model_h.C33; model_h.C33 = nullptr; }
     if (model_h.C55) { delete[] model_h.C55; model_h.C55 = nullptr; }
-    if (model_h.tau) { delete[] model_h.tau; model_h.tau = nullptr; }
-    if (model_h.inv_taus) { delete[] model_h.inv_taus; model_h.inv_taus = nullptr; }
+    if (model_h.taup) { delete[] model_h.taup; model_h.taup = nullptr; }
+    if (model_h.taus) { delete[] model_h.taus; model_h.taus = nullptr; }
+    if (model_h.inv_tsig) { delete[] model_h.inv_tsig; model_h.inv_tsig = nullptr; }
     if (model_h.mat) { delete[] model_h.mat; model_h.mat = nullptr; }
 
     // device model
@@ -586,11 +620,12 @@ void GridManager::memory_release() {
     if (model_d.C13) { cudaFree(model_d.C13); model_d.C13 = nullptr; }
     if (model_d.C33) { cudaFree(model_d.C33); model_d.C33 = nullptr; }
     if (model_d.C55) { cudaFree(model_d.C55); model_d.C55 = nullptr; }
-    if (model_d.tau) { cudaFree(model_d.tau); model_d.tau = nullptr; }
-    if (model_d.inv_taus) { cudaFree(model_d.inv_taus); model_d.inv_taus = nullptr; }
+    if (model_d.taup) { cudaFree(model_d.taup); model_d.taup = nullptr; }
+    if (model_d.taus) { cudaFree(model_d.taus); model_d.taus = nullptr; }
+    if (model_d.inv_tsig) { cudaFree(model_d.inv_tsig); model_d.inv_tsig = nullptr; }
     if (model_d.mat) { cudaFree(model_d.mat); model_d.mat = nullptr; }
 
-    // 先销毁纹理对象（它们依赖下面的内存）
+    // 先销毁纹理对象
     cudaDestroyTextureObject(tex_vx_mask);
     cudaDestroyTextureObject(tex_vz_mask);
     cudaDestroyTextureObject(tex_sig_mask);
