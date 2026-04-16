@@ -30,7 +30,6 @@ __global__ void smooth_fine_vx(float *vx, float *temp, int cur, int zone, int lv
 __global__ void smooth_fine_vz(float *vz, float *temp, int cur, int zone, int lvl);
 __global__ void smooth_fine_txz(float *txz, float *temp, int cur, int zone, int lvl);
 __global__ void smooth_fine_sig(float *sig, float *temp, int cur, int zone, int lvl);
-__global__ void smooth_fine_rp(float *rp, float *temp, int cur, int zone, int lvl);
 __global__ void smooth_fine_p(float *p, float *temp, int cur, int zone, int lvl);
 __global__ void smooth_fine_rx(float *rx, float *temp, int cur, int zone, int lvl);
 __global__ void smooth_fine_rz(float *rz, float *temp, int cur, int zone, int lvl);

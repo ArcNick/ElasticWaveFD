@@ -97,19 +97,13 @@ __global__ void update_sigma_coarse(Core core, Model model, PsiVel psi_vel, int 
                 dvz_dz = dvz_dz / kappa_half_d[pml_idx] + psi_vel.psi_vz_z[iz * nx + ix];
             }
 
-            core.sx[IdxSigCo(ix, iz, cur)] = (
-                + core.sx[IdxSigCo(ix, iz, cur ^ 1)]
-                + dt_d * (
-                    + model.C11[IdxSigCo(ix, iz, 0)] * dvx_dx 
-                    + model.C13[IdxSigCo(ix, iz, 0)] * dvz_dz
-                )
+            core.sx[IdxSigCo(ix, iz, cur)] = core.sx[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
+                + model.C11[IdxSigCo(ix, iz, 0)] * dvx_dx 
+                + model.C13[IdxSigCo(ix, iz, 0)] * dvz_dz
             );
-            core.sz[IdxSigCo(ix, iz, cur)] = (
-                + core.sz[IdxSigCo(ix, iz, cur ^ 1)]
-                + dt_d * (
-                    + model.C13[IdxSigCo(ix, iz, 0)] * dvx_dx
-                    + model.C33[IdxSigCo(ix, iz, 0)] * dvz_dz
-                )
+            core.sz[IdxSigCo(ix, iz, cur)] = core.sz[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
+                + model.C13[IdxSigCo(ix, iz, 0)] * dvx_dx
+                + model.C33[IdxSigCo(ix, iz, 0)] * dvz_dz
             );
         }
         break;
@@ -125,24 +119,14 @@ __global__ void update_sigma_coarse(Core core, Model model, PsiVel psi_vel, int 
                 dvz_dz = dvz_dz_coarse(core.vz, ix, iz, cur ^ 1);
             }
             
-            core.p[IdxSigCo(ix, iz, cur)] = core.p[IdxSigCo(ix, iz, cur ^ 1)] + (
-                - dt_d * ( 
-                    + model.C11[IdxSigCo(ix, iz, 0)] * (1 + model.taup[IdxSigCo(ix, iz, 0)]) * (
-                        dvx_dx + dvz_dz
-                    )
-                    - core.rp[IdxSigCo(ix, iz, cur ^ 1)] * model.inv_tsig[IdxSigCo(ix, iz, 0)]
-                )
+            core.p[IdxSigCo(ix, iz, cur)] = core.p[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
+                + model.C11[IdxSigCo(ix, iz, 0)] * (dvx_dx + dvz_dz)
             );
-            core.sx[IdxSigCo(ix, iz, cur)] = -core.p[IdxSigCo(ix, iz, cur)];
-            core.sz[IdxSigCo(ix, iz, cur)] = -core.p[IdxSigCo(ix, iz, cur)];
-
-            core.rp[IdxSigCo(ix, iz, cur)] = core.rp[IdxSigCo(ix, iz, cur ^ 1)] + (
-                - dt_d * (
-                    + core.rp[IdxSigCo(ix, iz, cur ^ 1)] * model.inv_tsig[IdxSigCo(ix, iz, 0)]
-                    + model.C11[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * (
-                        dvx_dx + dvz_dz
-                    )
-                )
+            core.sx[IdxSigCo(ix, iz, cur)] = -core.p[IdxSigCo(ix, iz, cur)] + (
+                model.zeta[IdxSigCo(ix, iz, 0)] * (dvx_dx + dvz_dz)
+            );
+            core.sz[IdxSigCo(ix, iz, cur)] = -core.p[IdxSigCo(ix, iz, cur)] + (
+                model.zeta[IdxSigCo(ix, iz, 0)] * (dvx_dx + dvz_dz)
             );
         }
         break;
@@ -159,28 +143,23 @@ __global__ void update_sigma_coarse(Core core, Model model, PsiVel psi_vel, int 
             }
             
             // 粘弹性区不设置在边界区
-            core.sx[IdxSigCo(ix, iz, cur)] = (
-                + core.sx[IdxSigCo(ix, iz, cur ^ 1)]
-                + dt_d * (
-                    + model.C11[IdxSigCo(ix, iz, 0)] * (
-                        1 + model.taup[IdxSigCo(ix, iz, 0)]
-                    ) * dvx_dx 
-                    + model.C13[IdxSigCo(ix, iz, 0)] * (
-                        1 + model.taup[IdxSigCo(ix, iz, 0)]
-                    ) * dvz_dz
-                ) + model.inv_tsig[IdxSigCo(ix, iz, 0)] * core.rx[IdxSigCo(ix, iz, cur ^ 1)]
+            core.sx[IdxSigCo(ix, iz, cur)] = core.sx[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
+                + model.C11[IdxSigCo(ix, iz, 0)] * (
+                    1 + model.taup[IdxSigCo(ix, iz, 0)]
+                ) * dvx_dx 
+                + model.C13[IdxSigCo(ix, iz, 0)] * (
+                    1 + model.taup[IdxSigCo(ix, iz, 0)]
+                ) * dvz_dz
+                + model.inv_tsig[IdxSigCo(ix, iz, 0)] * core.rx[IdxSigCo(ix, iz, cur ^ 1)]
             );
-
-            core.sz[IdxSigCo(ix, iz, cur)] = (
-                + core.sz[IdxSigCo(ix, iz, cur ^ 1)]
-                + dt_d * (
-                    + model.C13[IdxSigCo(ix, iz, 0)] * (
-                        1 + model.taup[IdxSigCo(ix, iz, 0)]
-                    ) * dvx_dx
-                    + model.C33[IdxSigCo(ix, iz, 0)] * (
-                        1 + model.taup[IdxSigCo(ix, iz, 0)]
-                    ) * dvz_dz
-                ) + model.inv_tsig[IdxSigCo(ix, iz, 0)] * core.rz[IdxSigCo(ix, iz, cur ^ 1)]
+            core.sz[IdxSigCo(ix, iz, cur)] = core.sz[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
+                + model.C13[IdxSigCo(ix, iz, 0)] * (
+                    1 + model.taup[IdxSigCo(ix, iz, 0)]
+                ) * dvx_dx
+                + model.C33[IdxSigCo(ix, iz, 0)] * (
+                    1 + model.taup[IdxSigCo(ix, iz, 0)]
+                ) * dvz_dz
+                + model.inv_tsig[IdxSigCo(ix, iz, 0)] * core.rz[IdxSigCo(ix, iz, cur ^ 1)]
             );
             core.rx[IdxSigCo(ix, iz, cur)] = core.rx[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
                 - model.inv_tsig[IdxSigCo(ix, iz, 0)] * core.rx[IdxSigCo(ix, iz, cur ^ 1)]
@@ -259,11 +238,11 @@ __global__ void update_tau_coarse(Core core, Model model, PsiVel psi_vel, int cu
             dvx_dz = dvx_dz_coarse(core.vx, ix, iz, cur ^ 1);
             dvz_dx = dvz_dx_coarse(core.vz, ix, iz, cur ^ 1);
 
-            core.txz[IdxTxzCo(ix, iz, cur)] = core.txz[IdxTxzCo(ix, iz, cur ^ 1)] + (
-                + dt_d * samp_C55_coarse(model.C55, ix, iz) * (dvz_dx + dvx_dz) * (
+            core.txz[IdxTxzCo(ix, iz, cur)] = core.txz[IdxTxzCo(ix, iz, cur ^ 1)] + dt_d * (
+                + samp_C55_coarse(model.C55, ix, iz) * (dvz_dx + dvx_dz) * (
                     1 + samp_taus_coarse(model.taus, ix, iz)
                 ) 
-                + model.inv_tsig[IdxTxzCo(ix, iz, 0)] * core.txz[IdxTxzCo(ix, iz, cur ^ 1)]
+                + model.inv_tsig[IdxTxzCo(ix, iz, 0)] * core.rxz[IdxTxzCo(ix, iz, cur ^ 1)]
             );
             core.rxz[IdxTxzCo(ix, iz, cur)] = core.rxz[IdxTxzCo(ix, iz, cur ^ 1)] + dt_d * (
                 - model.inv_tsig[IdxTxzCo(ix, iz, 0)] * core.rxz[IdxTxzCo(ix, iz, cur ^ 1)]
@@ -399,33 +378,29 @@ __global__ void update_sigma_fine(Core core, Model model, int cur, int zone) {
         float dvx_dx = dvx_dx_8th(core.vx, ix, iz, cur ^ 1, zone);
         float dvz_dz = dvz_dz_8th(core.vz, ix, iz, cur ^ 1, zone);
         core.p[IdxSigFi(ix, iz, cur, zone)] = core.p[IdxSigFi(ix, iz, cur ^ 1, zone)] + dt_d * (
-            - model.C11[IdxSigFi(ix, iz, 0, zone)] * (1 + model.taup[IdxSigFi(ix, iz, 0, zone)]) * (
-                dvx_dx + dvz_dz
-            ) - model.inv_tsig[IdxSigFi(ix, iz, 0, zone)] * core.rp[IdxSigFi(ix, iz, cur ^ 1, zone)]
+            - model.C11[IdxSigFi(ix, iz, 0, zone)] * (dvx_dx + dvz_dz)
         );
-        core.sx[IdxSigFi(ix, iz, cur, zone)] = -core.p[IdxSigFi(ix, iz, cur, zone)];
-        core.sz[IdxSigFi(ix, iz, cur, zone)] = -core.p[IdxSigFi(ix, iz, cur, zone)];
+        core.sx[IdxSigFi(ix, iz, cur, zone)] = -core.p[IdxSigFi(ix, iz, cur, zone)] + (
+            model.zeta[IdxSigFi(ix, iz, 0, zone)] * (dvx_dx + dvz_dz)
+        );
+        core.sz[IdxSigFi(ix, iz, cur, zone)] = -core.p[IdxSigFi(ix, iz, cur, zone)] + (
+            model.zeta[IdxSigFi(ix, iz, 0, zone)] * (dvx_dx + dvz_dz)
+        );
 
-        core.rp[IdxSigFi(ix, iz, cur, zone)] = core.rp[IdxSigFi(ix, iz, cur ^ 1, zone)] + dt_d * (
-            - model.inv_tsig[IdxSigFi(ix, iz, 0, zone)] * core.rp[IdxSigFi(ix, iz, cur ^ 1, zone)]
-            - model.C11[IdxSigFi(ix, iz, 0, zone)] * model.taup[IdxSigFi(ix, iz, 0, zone)] * (dvx_dx + dvz_dz)
-        );
         break;
     }
     case VESOLID: {
         float dvx_dx = dvx_dx_8th(core.vx, ix, iz, cur ^ 1, zone);
         float dvz_dz = dvz_dz_8th(core.vz, ix, iz, cur ^ 1, zone);
-        core.sx[IdxSigFi(ix, iz, cur, zone)] = core.sx[IdxSigFi(ix, iz, cur ^ 1, zone)] + (
-            dt_d * (
-                + model.C11[IdxSigFi(ix, iz, 0, zone)] * (1 + model.taup[IdxSigFi(ix, iz, 0, zone)]) * dvx_dx
-                + model.C13[IdxSigFi(ix, iz, 0, zone)] * (1 + model.taup[IdxSigFi(ix, iz, 0, zone)]) * dvz_dz
-            ) + model.inv_tsig[IdxSigFi(ix, iz, 0, zone)] * core.rx[IdxSigFi(ix, iz, cur ^ 1, zone)]
+        core.sx[IdxSigFi(ix, iz, cur, zone)] = core.sx[IdxSigFi(ix, iz, cur ^ 1, zone)] + dt_d * (
+            + model.C11[IdxSigFi(ix, iz, 0, zone)] * (1 + model.taup[IdxSigFi(ix, iz, 0, zone)]) * dvx_dx
+            + model.C13[IdxSigFi(ix, iz, 0, zone)] * (1 + model.taup[IdxSigFi(ix, iz, 0, zone)]) * dvz_dz
+            + model.inv_tsig[IdxSigFi(ix, iz, 0, zone)] * core.rx[IdxSigFi(ix, iz, cur ^ 1, zone)]
         );
-        core.sz[IdxSigFi(ix, iz, cur, zone)] = core.sz[IdxSigFi(ix, iz, cur ^ 1, zone)] + (
-            dt_d * (
-                + model.C13[IdxSigFi(ix, iz, 0, zone)] * (1 + model.taup[IdxSigFi(ix, iz, 0, zone)]) * dvx_dx
-                + model.C33[IdxSigFi(ix, iz, 0, zone)] * (1 + model.taup[IdxSigFi(ix, iz, 0, zone)]) * dvz_dz
-            ) + model.inv_tsig[IdxSigFi(ix, iz, 0, zone)] * core.rz[IdxSigFi(ix, iz, cur ^ 1, zone)]
+        core.sz[IdxSigFi(ix, iz, cur, zone)] = core.sz[IdxSigFi(ix, iz, cur ^ 1, zone)] + dt_d * (
+            + model.C13[IdxSigFi(ix, iz, 0, zone)] * (1 + model.taup[IdxSigFi(ix, iz, 0, zone)]) * dvx_dx
+            + model.C33[IdxSigFi(ix, iz, 0, zone)] * (1 + model.taup[IdxSigFi(ix, iz, 0, zone)]) * dvz_dz
+            + model.inv_tsig[IdxSigFi(ix, iz, 0, zone)] * core.rz[IdxSigFi(ix, iz, cur ^ 1, zone)]
         );
         core.rx[IdxSigFi(ix, iz, cur, zone)] = core.rx[IdxSigFi(ix, iz, cur ^ 1, zone)] + dt_d * (
             - model.inv_tsig[IdxSigFi(ix, iz, 0, zone)] * core.rx[IdxSigFi(ix, iz, cur ^ 1, zone)]
@@ -473,11 +448,11 @@ __global__ void update_tau_fine(Core core, Model model, int cur, int zone) {
     case 1: {
         float dvx_dz = dvx_dz_8th(core.vx, ix, iz, cur ^ 1, zone);
         float dvz_dx = dvz_dx_8th(core.vz, ix, iz, cur ^ 1, zone);
-        core.txz[IdxTxzFi(ix, iz, cur, zone)] = core.txz[IdxTxzFi(ix, iz, cur ^ 1, zone)] + (
-            dt_d * samp_C55_fine(model.C55, ix, iz, zone) * (
+        core.txz[IdxTxzFi(ix, iz, cur, zone)] = core.txz[IdxTxzFi(ix, iz, cur ^ 1, zone)] + dt_d * (
+            + samp_C55_fine(model.C55, ix, iz, zone) * (dvz_dx + dvx_dz) * (
                 1 + samp_taus_fine(model.taus, ix, iz, zone)
-            ) * (dvz_dx + dvx_dz) 
-            + model.inv_tsig[IdxTxzFi(ix, iz, 0, zone)] * core.txz[IdxTxzFi(ix, iz, cur ^ 1, zone)]
+            ) 
+            + model.inv_tsig[IdxTxzFi(ix, iz, 0, zone)] * core.rxz[IdxTxzFi(ix, iz, cur ^ 1, zone)]
         );
         core.rxz[IdxTxzFi(ix, iz, cur, zone)] = core.rxz[IdxTxzFi(ix, iz, cur ^ 1, zone)] + dt_d * (
             - model.inv_tsig[IdxTxzFi(ix, iz, 0, zone)] * core.rxz[IdxTxzFi(ix, iz, cur ^ 1, zone)]
@@ -804,65 +779,7 @@ __global__ void smooth_fine_p(float *p, float *temp, int cur, int zone, int lvl)
     temp[idx_dst] = sum / total_weight;
 }
 
-__global__ void smooth_fine_rp(float *rp, float *temp, int cur, int zone, int lvl) {
-    int ix = blockIdx.x * blockDim.x + threadIdx.x;
-    int iz = blockIdx.y * blockDim.y + threadIdx.y;
-    if (ix >= fines[zone].lenx || iz >= fines[zone].lenz) return;
-
-    int idx_src = IdxSigFi(ix, iz, cur, zone);
-    int idx_dst = IdxSigFi(ix, iz, 0, zone) - sum_offset_fine_sig[0];
-
-    if (tex1Dfetch<int>(mat_tex, idx_src) != FLUID) {
-        temp[idx_dst] = rp[idx_src];
-        return;
-    }
-
-    float sum = coeff[lvl][0] * rp[idx_src];
-    float total_weight = coeff[lvl][0];
-
-    auto is_fluid = [&](int x, int y) -> bool {
-        if (x < 0 || x >= fines[zone].lenx || y < 0 || y >= fines[zone].lenz) return false;
-        return tex1Dfetch<int>(mat_tex, IdxSigFi(x, y, 0, zone)) == FLUID;
-    };
-
-    if (iz > 0 && is_fluid(ix, iz-1)) {
-        sum += coeff[lvl][1] * rp[IdxSigFi(ix, iz-1, cur, zone)];
-        total_weight += coeff[lvl][1];
-    }
-    if (iz < fines[zone].lenz - 1 && is_fluid(ix, iz+1)) {
-        sum += coeff[lvl][1] * rp[IdxSigFi(ix, iz+1, cur, zone)];
-        total_weight += coeff[lvl][1];
-    }
-    if (ix > 0 && is_fluid(ix-1, iz)) {
-        sum += coeff[lvl][1] * rp[IdxSigFi(ix-1, iz, cur, zone)];
-        total_weight += coeff[lvl][1];
-    }
-    if (ix < fines[zone].lenx - 1 && is_fluid(ix+1, iz)) {
-        sum += coeff[lvl][1] * rp[IdxSigFi(ix+1, iz, cur, zone)];
-        total_weight += coeff[lvl][1];
-    }
-
-    if (ix > 0 && iz > 0 && is_fluid(ix-1, iz-1)) {
-        sum += coeff[lvl][2] * rp[IdxSigFi(ix-1, iz-1, cur, zone)];
-        total_weight += coeff[lvl][2];
-    }
-    if (ix < fines[zone].lenx - 1 && iz > 0 && is_fluid(ix+1, iz-1)) {
-        sum += coeff[lvl][2] * rp[IdxSigFi(ix+1, iz-1, cur, zone)];
-        total_weight += coeff[lvl][2];
-    }
-    if (ix > 0 && iz < fines[zone].lenz - 1 && is_fluid(ix-1, iz+1)) {
-        sum += coeff[lvl][2] * rp[IdxSigFi(ix-1, iz+1, cur, zone)];
-        total_weight += coeff[lvl][2];
-    }
-    if (ix < fines[zone].lenx - 1 && iz < fines[zone].lenz - 1 && is_fluid(ix+1, iz+1)) {
-        sum += coeff[lvl][2] * rp[IdxSigFi(ix+1, iz+1, cur, zone)];
-        total_weight += coeff[lvl][2];
-    }
-
-    temp[idx_dst] = sum / total_weight;
-}
-
-// 平滑记忆变量 rx（整网格，与 sx 同位置）
+// 平滑记忆变量 rx
 __global__ void smooth_fine_rx(float *rx, float *temp, int cur, int zone, int lvl) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
