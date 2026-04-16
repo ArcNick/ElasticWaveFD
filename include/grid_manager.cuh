@@ -35,7 +35,6 @@ struct Core {
     float *rxz = nullptr;
 
     float *p = nullptr;
-    float *rp = nullptr;
 };
 
 struct Model {
@@ -44,6 +43,7 @@ struct Model {
     float *C13 = nullptr;
     float *C33 = nullptr;
     float *C55 = nullptr;
+    float *zeta = nullptr;
     float *taup = nullptr;
     float *taus = nullptr;
     float *inv_tsig = nullptr;

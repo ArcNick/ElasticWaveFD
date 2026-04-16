@@ -17,7 +17,7 @@
      ```bash
      compute-sanitizer --tool memcheck --leak-check full --log-file report.txt ./bin/main_debug
      ```
-已知问题：若使用 `compute-sanitizer` ，在 wsl2 环境下，请确保 windows 和 wsl2 同时安装了cuda toolkit，否则该工具可能无法使用。
+已知问题：若使用 compute-sanitizer ，在 wsl2 环境下，请确保 windows 和 wsl2 同时安装了 cuda toolkit，否则该工具可能无法使用。
 
 # 模型构建
 构建可使用 `tools` 下的脚本，同时一键生成 JSON 配置文件。
