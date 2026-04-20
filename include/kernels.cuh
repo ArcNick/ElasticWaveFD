@@ -6,10 +6,10 @@
 
 extern __constant__ float coeff[5][3];
 
-extern __device__ int IdxVxFi(int ix, int iz, int cur, int zone);
-extern __device__ int IdxVzFi(int ix, int iz, int cur, int zone);
-extern __device__ int IdxSigFi(int ix, int iz, int cur, int zone);
-extern __device__ int IdxTxzFi(int ix, int iz, int cur, int zone);
+extern __device__ int IdxVxFi(int ix, int iz, int zone, int time);
+extern __device__ int IdxVzFi(int ix, int iz, int zone, int time);
+extern __device__ int IdxSigFi(int ix, int iz, int zone, int time);
+extern __device__ int IdxTxzFi(int ix, int iz, int zone, int time);
 
 __device__ int get_cpml_idx_x_int(int ix);
 __device__ int get_cpml_idx_z_int(int iz);

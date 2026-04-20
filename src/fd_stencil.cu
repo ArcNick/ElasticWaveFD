@@ -14,16 +14,16 @@ __device__ int IdxSigCo(int ix, int iz, int time) {
 __device__ int IdxTxzCo(int ix, int iz, int time) {
     return iz * (nx - 1) + ix + time * offset_txz_all;
 }
-__device__ int IdxVxFi(int ix, int iz, int time, int zone) {
+__device__ int IdxVxFi(int ix, int iz, int zone, int time) {
     return iz * (fines[zone].lenx - 1) + ix + time * offset_vx_all + sum_offset_fine_vx[zone];
 }
-__device__ int IdxVzFi(int ix, int iz, int time, int zone) {
+__device__ int IdxVzFi(int ix, int iz, int zone, int time) {
     return iz * fines[zone].lenx + ix + time * offset_vz_all + sum_offset_fine_vz[zone];
 }
-__device__ int IdxSigFi(int ix, int iz, int time, int zone) {
+__device__ int IdxSigFi(int ix, int iz, int zone, int time) {
     return iz * fines[zone].lenx + ix + time * offset_sig_all + sum_offset_fine_sig[zone];
 }
-__device__ int IdxTxzFi(int ix, int iz, int time, int zone) {
+__device__ int IdxTxzFi(int ix, int iz, int zone, int time) {
     return iz * (fines[zone].lenx - 1) + ix + time * offset_txz_all + sum_offset_fine_txz[zone];
 }
 
@@ -40,7 +40,7 @@ __device__ float samp_rho_x_coarse(float *f, int ix, int iz) {
     } else {
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        val1 = f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+        val1 = f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
     }
 
     zone = tex1Dfetch<int>(sig_mask, iz * nx + ix + 1);
@@ -49,7 +49,7 @@ __device__ float samp_rho_x_coarse(float *f, int ix, int iz) {
     } else {
         ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        val2 = f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+        val2 = f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
     }
     
     return 2 / (1 / val1 + 1 / val2);
@@ -67,7 +67,7 @@ __device__ float samp_rho_z_coarse(float *f, int ix, int iz) {
     } else {
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        val1 = f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+        val1 = f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
     }
 
     zone = tex1Dfetch<int>(sig_mask, (iz + 1) * nx + ix);
@@ -76,21 +76,21 @@ __device__ float samp_rho_z_coarse(float *f, int ix, int iz) {
     } else {
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
-        val2 = f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+        val2 = f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
     }
     
     return 2 / (1 / val1 + 1 / val2);
 }
 
 __device__ float samp_rho_x_fine(float *f, int ix, int iz, int zone) {
-    float val1 = f[IdxSigFi(ix, iz, 0, zone)];
-    float val2 = f[IdxSigFi(ix + 1, iz, 0, zone)];
+    float val1 = f[IdxSigFi(ix, iz, zone, 0)];
+    float val2 = f[IdxSigFi(ix + 1, iz, zone, 0)];
     return 2 / (1 / val1 + 1 / val2);
 }
 
 __device__ float samp_rho_z_fine(float *f, int ix, int iz, int zone) {
-    float val1 = f[IdxSigFi(ix, iz, 0, zone)];
-    float val2 = f[IdxSigFi(ix, iz + 1, 0, zone)];
+    float val1 = f[IdxSigFi(ix, iz, zone, 0)];
+    float val2 = f[IdxSigFi(ix, iz + 1, zone, 0)];
     return 2 / (1 / val1 + 1 / val2);
 }
 
@@ -112,8 +112,8 @@ __device__ float samp_C55_coarse(
     } else {
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) <= VESOLID) {
-            sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) <= VESOLID) {
+            sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
         } else {
             return 0;
         }
@@ -129,8 +129,8 @@ __device__ float samp_C55_coarse(
     } else {
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
-        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) <= VESOLID) {
-            sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) <= VESOLID) {
+            sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
         } else {
             return 0;
         }
@@ -146,8 +146,8 @@ __device__ float samp_C55_coarse(
     } else {
         ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) <= VESOLID) {
-            sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) <= VESOLID) {
+            sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
         } else {
             return 0;
         }
@@ -163,8 +163,8 @@ __device__ float samp_C55_coarse(
     } else {
         ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
-        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) <= VESOLID) {
-            sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) <= VESOLID) {
+            sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
         } else {
             return 0;
         }
@@ -174,23 +174,23 @@ __device__ float samp_C55_coarse(
 
 __device__ float samp_C55_fine(float *f, int ix, int iz, int zone) {
     float sum = 0;
-    if (MAT(IdxSigFi(ix, iz, 0, zone)) <= VESOLID) {
-        sum += f[IdxSigFi(ix, iz, 0, zone)];
+    if (MAT(IdxSigFi(ix, iz, zone, 0)) <= VESOLID) {
+        sum += f[IdxSigFi(ix, iz, zone, 0)];
     } else {
         return 0;
     }
-    if (MAT(IdxSigFi(ix + 1, iz, 0, zone)) <= VESOLID) {
-        sum += f[IdxSigFi(ix + 1, iz, 0, zone)];
+    if (MAT(IdxSigFi(ix + 1, iz, zone, 0)) <= VESOLID) {
+        sum += f[IdxSigFi(ix + 1, iz, zone, 0)];
     } else {
         return 0;
     }
-    if (MAT(IdxSigFi(ix, iz + 1, 0, zone)) <= VESOLID) {
-        sum += f[IdxSigFi(ix, iz + 1, 0, zone)];
+    if (MAT(IdxSigFi(ix, iz + 1, zone, 0)) <= VESOLID) {
+        sum += f[IdxSigFi(ix, iz + 1, zone, 0)];
     } else {
         return 0;
     }
-    if (MAT(IdxSigFi(ix + 1, iz + 1, 0, zone)) <= VESOLID) {
-        sum += f[IdxSigFi(ix + 1, iz + 1, 0, zone)];
+    if (MAT(IdxSigFi(ix + 1, iz + 1, zone, 0)) <= VESOLID) {
+        sum += f[IdxSigFi(ix + 1, iz + 1, zone, 0)];
     } else {
         return 0;
     }
@@ -216,8 +216,8 @@ __device__ float samp_taus_coarse(float *f, int ix, int iz) {
     } else {
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) == VESOLID) {
-            sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) == VESOLID) {
+            sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
             cnt++;
         } else {
             return 0;
@@ -235,8 +235,8 @@ __device__ float samp_taus_coarse(float *f, int ix, int iz) {
     } else {
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
-        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) == VESOLID) {
-            sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) == VESOLID) {
+            sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
             cnt++;
         } else {
             return 0;
@@ -254,8 +254,8 @@ __device__ float samp_taus_coarse(float *f, int ix, int iz) {
     } else {
         ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) == VESOLID) {
-            sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) == VESOLID) {
+            sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
             cnt++;
         } else {
             return 0;
@@ -273,8 +273,8 @@ __device__ float samp_taus_coarse(float *f, int ix, int iz) {
     } else {
         ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
-        if (MAT(IdxSigFi(ix_fine, iz_fine, 0, zone)) == VESOLID) {
-            sum += f[IdxSigFi(ix_fine, iz_fine, 0, zone)];
+        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) == VESOLID) {
+            sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
             cnt++;
         } else {
             return 0;
@@ -285,26 +285,26 @@ __device__ float samp_taus_coarse(float *f, int ix, int iz) {
 __device__ float samp_taus_fine(float *f, int ix, int iz, int zone) {
     float sum = 0;
     int cnt = 0;
-    if (MAT(IdxSigFi(ix, iz, 0, zone)) == VESOLID) {
-        sum += f[IdxSigFi(ix, iz, 0, zone)];
+    if (MAT(IdxSigFi(ix, iz, zone, 0)) == VESOLID) {
+        sum += f[IdxSigFi(ix, iz, zone, 0)];
         cnt++;
     } else {
         return 0;
     }
-    if (MAT(IdxSigFi(ix + 1, iz, 0, zone)) == VESOLID) {
-        sum += f[IdxSigFi(ix + 1, iz, 0, zone)];
+    if (MAT(IdxSigFi(ix + 1, iz, zone, 0)) == VESOLID) {
+        sum += f[IdxSigFi(ix + 1, iz, zone, 0)];
         cnt++;
     } else {
         return 0;
     }
-    if (MAT(IdxSigFi(ix, iz + 1, 0, zone)) == VESOLID) {
-        sum += f[IdxSigFi(ix, iz + 1, 0, zone)];
+    if (MAT(IdxSigFi(ix, iz + 1, zone, 0)) == VESOLID) {
+        sum += f[IdxSigFi(ix, iz + 1, zone, 0)];
         cnt++;
     } else {
         return 0;
     }
-    if (MAT(IdxSigFi(ix + 1, iz + 1, 0, zone)) == VESOLID) {
-        sum += f[IdxSigFi(ix + 1, iz + 1, 0, zone)];
+    if (MAT(IdxSigFi(ix + 1, iz + 1, zone, 0)) == VESOLID) {
+        sum += f[IdxSigFi(ix + 1, iz + 1, zone, 0)];
         cnt++;
     } else {
         return 0;
@@ -530,7 +530,7 @@ __device__ float dvx_dx_coarse(
                 ix + i - 1 + 0.5 - fines[mask].x_start - 1.0 / (2 * fines[mask].N)
             ) * fines[mask].N;
             local_iz = (iz - fines[mask].z_start) * fines[mask].N;
-            sum += c_normal[i] * f[IdxVxFi(local_ix, local_iz, 0, mask)];
+            sum += c_normal[i] * f[IdxVxFi(local_ix, local_iz, mask, 0)];
         } else {
             sum += c_normal[i] * f[iz * (nx - 1) + (ix + i - 1)];
         }
@@ -542,7 +542,7 @@ __device__ float dvx_dx_coarse(
                 ix - i + 0.5 - fines[mask].x_start - 1.0 / (2 * fines[mask].N)
             ) * fines[mask].N;
             local_iz = (iz - fines[mask].z_start) * fines[mask].N;
-            sum -= c_normal[i] * f[IdxVxFi(local_ix, local_iz, 0, mask)];
+            sum -= c_normal[i] * f[IdxVxFi(local_ix, local_iz, mask, 0)];
         } else {
             sum -= c_normal[i] * f[iz * (nx - 1) + (ix - i)];
         }
@@ -565,7 +565,7 @@ __device__ float dvx_dz_coarse(
                 ix + 0.5 - fines[mask].x_start - 1.0 / (2 * fines[mask].N)
             ) * fines[mask].N;
             local_iz = (iz + i - fines[mask].z_start) * fines[mask].N;
-            sum += d_normal[i] * f[IdxVxFi(local_ix, local_iz, 0, mask)];
+            sum += d_normal[i] * f[IdxVxFi(local_ix, local_iz, mask, 0)];
         } else {
             sum += d_normal[i] * f[(iz + i) * (nx - 1) + ix];
         }
@@ -576,7 +576,7 @@ __device__ float dvx_dz_coarse(
                 ix + 0.5 - fines[mask].x_start - 1.0 / (2 * fines[mask].N)
             ) * fines[mask].N;
             local_iz = (iz - i + 1 - fines[mask].z_start) * fines[mask].N;
-            sum -= d_normal[i] * f[IdxVxFi(local_ix, local_iz, 0, mask)];
+            sum -= d_normal[i] * f[IdxVxFi(local_ix, local_iz, mask, 0)];
         } else {
             sum -= d_normal[i] * f[(iz - i + 1) * (nx - 1) + ix];
         }
@@ -597,7 +597,7 @@ __device__ float dvz_dx_coarse(
         if (mask != -1) {
             local_ix = (ix + i - fines[mask].x_start) * fines[mask].N;
             local_iz = (iz + 0.5 - fines[mask].z_start - 1.0 / (2 * fines[mask].N)) * fines[mask].N;
-            sum += d_normal[i] * f[IdxVzFi(local_ix, local_iz, 0, mask)];
+            sum += d_normal[i] * f[IdxVzFi(local_ix, local_iz, mask, 0)];
         } else {
             sum += d_normal[i] * f[iz * nx + ix + i];
         }
@@ -606,7 +606,7 @@ __device__ float dvz_dx_coarse(
         if (mask != -1) {
             local_ix = (ix - i + 1 - fines[mask].x_start) * fines[mask].N;
             local_iz = (iz + 0.5 - fines[mask].z_start - 1.0 / (2 * fines[mask].N)) * fines[mask].N;
-            sum -= d_normal[i] * f[IdxVzFi(local_ix, local_iz, 0, mask)];
+            sum -= d_normal[i] * f[IdxVzFi(local_ix, local_iz, mask, 0)];
         } else {
             sum -= d_normal[i] * f[iz * nx + ix - i + 1];
         }
@@ -627,7 +627,7 @@ __device__ float dvz_dz_coarse(
         if (mask != -1) {
             local_iz = (iz + i - 1 + 0.5 - fines[mask].z_start - 1.0 / (2 * fines[mask].N)) * fines[mask].N;
             local_ix = (ix - fines[mask].x_start) * fines[mask].N;
-            sum += c_normal[i] * f[IdxVzFi(local_ix, local_iz, 0, mask)];
+            sum += c_normal[i] * f[IdxVzFi(local_ix, local_iz, mask, 0)];
         } else {
             sum += c_normal[i] * f[(iz + i - 1) * nx + ix];
         }
@@ -636,7 +636,7 @@ __device__ float dvz_dz_coarse(
         if (mask != -1) {
             local_iz = (iz - i + 0.5 - fines[mask].z_start - 1.0 / (2 * fines[mask].N)) * fines[mask].N;
             local_ix = (ix - fines[mask].x_start) * fines[mask].N;
-            sum -= c_normal[i] * f[IdxVzFi(local_ix, local_iz, 0, mask)];
+            sum -= c_normal[i] * f[IdxVzFi(local_ix, local_iz, mask, 0)];
         } else {
             sum -= c_normal[i] * f[(iz - i) * nx + ix];
         }
@@ -657,7 +657,7 @@ __device__ float dsx_dx_coarse(
         if (mask != -1) {
             local_ix = (ix + i - fines[mask].x_start) * fines[mask].N;
             local_iz = (iz - fines[mask].z_start) * fines[mask].N;
-            sum += d_normal[i] * f[IdxSigFi(local_ix, local_iz, 0, mask)];
+            sum += d_normal[i] * f[IdxSigFi(local_ix, local_iz, mask, 0)];
         } else {
             sum += d_normal[i] * f[iz * nx + ix + i];
         }
@@ -666,7 +666,7 @@ __device__ float dsx_dx_coarse(
         if (mask != -1) {
             local_ix = (ix - i + 1 - fines[mask].x_start) * fines[mask].N;
             local_iz = (iz - fines[mask].z_start) * fines[mask].N;
-            sum -= d_normal[i] * f[IdxSigFi(local_ix, local_iz, 0, mask)];
+            sum -= d_normal[i] * f[IdxSigFi(local_ix, local_iz, mask, 0)];
         } else {
             sum -= d_normal[i] * f[iz * nx + ix - i + 1];
         }
@@ -687,7 +687,7 @@ __device__ float dsz_dz_coarse(
         if (mask != -1) {
             local_ix = (ix - fines[mask].x_start) * fines[mask].N;
             local_iz = (iz + i - fines[mask].z_start) * fines[mask].N;
-            sum += d_normal[i] * f[IdxSigFi(local_ix, local_iz, 0, mask)];
+            sum += d_normal[i] * f[IdxSigFi(local_ix, local_iz, mask, 0)];
         } else {
             sum += d_normal[i] * f[(iz + i) * nx + ix];
         }
@@ -696,7 +696,7 @@ __device__ float dsz_dz_coarse(
         if (mask != -1) {
             local_ix = (ix - fines[mask].x_start) * fines[mask].N;
             local_iz = (iz - i + 1 - fines[mask].z_start) * fines[mask].N;
-            sum -= d_normal[i] * f[IdxSigFi(local_ix, local_iz, 0, mask)];
+            sum -= d_normal[i] * f[IdxSigFi(local_ix, local_iz, mask, 0)];
         } else {
             sum -= d_normal[i] * f[(iz - i + 1) * nx + ix];
         }
@@ -717,7 +717,7 @@ __device__ float dtxz_dx_coarse(
         if (mask != -1) {
             local_ix = (ix + i - 1 + 0.5 - fines[mask].x_start - 1.0 / (2 * fines[mask].N)) * fines[mask].N;
             local_iz = (iz + 0.5 - fines[mask].z_start - 1.0 / (2 * fines[mask].N)) * fines[mask].N;
-            sum += c_normal[i] * f[IdxTxzFi(local_ix, local_iz, 0, mask)];
+            sum += c_normal[i] * f[IdxTxzFi(local_ix, local_iz, mask, 0)];
         } else {
             sum += c_normal[i] * f[iz * (nx - 1) + ix + i - 1];
         }
@@ -726,7 +726,7 @@ __device__ float dtxz_dx_coarse(
         if (mask != -1) {
             local_ix = (ix - i + 0.5 - fines[mask].x_start - 1.0 / (2 * fines[mask].N)) * fines[mask].N;
             local_iz = (iz + 0.5 - fines[mask].z_start - 1.0 / (2 * fines[mask].N)) * fines[mask].N;
-            sum -= c_normal[i] * f[IdxTxzFi(local_ix, local_iz, 0, mask)];
+            sum -= c_normal[i] * f[IdxTxzFi(local_ix, local_iz, mask, 0)];
         } else {
             sum -= c_normal[i] * f[iz * (nx - 1) + ix - i];
         }
@@ -747,7 +747,7 @@ __device__ float dtxz_dz_coarse(
         if (mask != -1) {
             local_ix = (ix + 0.5 - fines[mask].x_start - 1.0 / (2 * fines[mask].N)) * fines[mask].N;
             local_iz = (iz + i - 1 + 0.5 - fines[mask].z_start - 1.0 / (2 * fines[mask].N)) * fines[mask].N;
-            sum += c_normal[i] * f[IdxTxzFi(local_ix, local_iz, 0, mask)];
+            sum += c_normal[i] * f[IdxTxzFi(local_ix, local_iz, mask, 0)];
         } else {
             sum += c_normal[i] * f[(iz + i - 1) * (nx - 1) + ix];
         }
@@ -756,7 +756,7 @@ __device__ float dtxz_dz_coarse(
         if (mask != -1) {
             local_ix = (ix + 0.5 - fines[mask].x_start - 1.0 / (2 * fines[mask].N)) * fines[mask].N;
             local_iz = (iz - i + 0.5 - fines[mask].z_start - 1.0 / (2 * fines[mask].N)) * fines[mask].N;
-            sum -= c_normal[i] * f[IdxTxzFi(local_ix, local_iz, 0, mask)];
+            sum -= c_normal[i] * f[IdxTxzFi(local_ix, local_iz, mask, 0)];
         } else {
             sum -= c_normal[i] * f[(iz - i) * (nx - 1) + ix];
         }
@@ -766,7 +766,7 @@ __device__ float dtxz_dz_coarse(
 
 // fine
 __device__ float dvx_dx_8th(
-    float *f, int ix, int iz, int time, int zone
+    float *f, int ix, int iz, int zone, int time
 ) {
     float sum = 0;
     f += time * offset_vx_all;
@@ -820,7 +820,7 @@ __device__ float dvx_dx_8th(
 }
 
 __device__ float dvx_dz_8th(
-    float *f, int ix, int iz, int time, int zone
+    float *f, int ix, int iz, int zone, int time
 ) {
     float sum = 0;
     f += time * offset_vx_all;
@@ -868,7 +868,7 @@ __device__ float dvx_dz_8th(
 }
 
 __device__ float dvz_dx_8th(
-    float *f, int ix, int iz, int time, int zone
+    float *f, int ix, int iz, int zone, int time
 ) {
     float sum = 0;
     f += time * offset_vz_all;
@@ -916,7 +916,7 @@ __device__ float dvz_dx_8th(
 }
 
 __device__ float dvz_dz_8th(
-    float *f, int ix, int iz, int time, int zone
+    float *f, int ix, int iz, int zone, int time
 ) {
     float sum = 0;
     f += time * offset_vz_all;
@@ -968,7 +968,7 @@ __device__ float dvz_dz_8th(
 }
 
 __device__ float dsx_dx_8th(
-    float *f, int ix, int iz, int time, int zone
+    float *f, int ix, int iz, int zone, int time
 ) {
     float sum = 0;
     f += time * offset_sig_all;
@@ -1016,7 +1016,7 @@ __device__ float dsx_dx_8th(
 }
 
 __device__ float dsz_dz_8th(
-    float *f, int ix, int iz, int time, int zone
+    float *f, int ix, int iz, int zone, int time
 ) {
     float sum = 0;
     f += time * offset_sig_all;
@@ -1064,7 +1064,7 @@ __device__ float dsz_dz_8th(
 }
 
 __device__ float dtxz_dx_8th(
-    float *f, int ix, int iz, int time, int zone
+    float *f, int ix, int iz, int zone, int time
 ) {
     float sum = 0;
     f += time * offset_txz_all;
@@ -1116,7 +1116,7 @@ __device__ float dtxz_dx_8th(
 }
 
 __device__ float dtxz_dz_8th(
-    float *f, int ix, int iz, int time, int zone
+    float *f, int ix, int iz, int zone, int time
 ) {
     float sum = 0;
     f += time * offset_txz_all;
