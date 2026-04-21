@@ -60,7 +60,7 @@ C11_fluid = rho_fluid * vp_fluid**2
 C55_fluid = rho_fluid * vs_fluid**2
 C13_fluid = C11_fluid - 2 * C55_fluid
 C33_fluid = C11_fluid
-Qp = 60
+Qp = 50
 zeta = C11_fluid / (2 * np.pi * fpeak * Qp)
 
 # 第三层模型 VTI

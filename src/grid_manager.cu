@@ -126,6 +126,8 @@ void GridManager::load_from_file(const std::string &file) {
         }
         if (dst[i].name == "material") {
             fread(static_cast<MAT_FLAG*>(dst[i].ptr), sizeof(MAT_FLAG), nx_coarse * nz_coarse, fp);
+        } else if (dst[i].name == "inv_tsig") {
+            fread(static_cast<float*>(dst[i].ptr), sizeof(float), nx_coarse * nz_coarse, fp);
         } else {
             fread(static_cast<float*>(dst[i].ptr), sizeof(float), nx_coarse * nz_coarse, fp);
         }

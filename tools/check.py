@@ -56,7 +56,7 @@ def lowpass_filter(data: np.ndarray, dt: float, cutoff=500, order=4) -> np.ndarr
 
 trace_filt = lowpass_filter(trace, dt)
 trace_down = trace_filt[::k]
-trace_down[0:110] = 0
+trace_down[0:200] = trace_down[200]
 dt_down = dt * k
 fs_down = 1/dt_down
 t_total = np.arange(len(trace_down)) * dt_down

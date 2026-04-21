@@ -5,6 +5,8 @@
 #include "params.cuh"
 #include "fd_stencil.cuh"
 
+#define TARGET_DT 0.001
+
 namespace fs = std::filesystem;
 
 float buffer[2048];
@@ -81,6 +83,8 @@ int main() {
         return -1;
     }
 
+    int gap = TARGET_DT / params.dt;
+
     for (int it = 0; it < params.nt; it++) {
         int cur = it & 1;
 
@@ -90,8 +94,8 @@ int main() {
         update_tau_coarse<<<grid_co, block, 0, stream_co>>>(gm.core_d, gm.model_d, cpml.psi_vel, cur, it);
         for (int i = 0; i < gm.fine_info.size(); i++) {
             dim3 grid_fi((gm.fine_info[i].lenx + 15) / 16, (gm.fine_info[i].lenz + 15) / 16);
-            update_sigma_fine<<<grid_fi, block, 0, stream_fi[i]>>>(gm.core_d, gm.model_d, cur, i);
-            update_tau_fine<<<grid_fi, block, 0, stream_fi[i]>>>(gm.core_d, gm.model_d, cur, i);
+            update_sigma_fine<<<grid_fi, block, 0, stream_fi[i]>>>(gm.core_d, gm.model_d, i, cur);
+            update_tau_fine<<<grid_fi, block, 0, stream_fi[i]>>>(gm.core_d, gm.model_d, i, cur);
         }
 
         // apply_fluid_boundary_coarse<<<grid_co, block, 0, stream_co>>>(gm.core_d, cur);
@@ -106,19 +110,20 @@ int main() {
         for (int i = 0; i < gm.fine_info.size(); i++) {
             dim3 grid_fi((gm.fine_info[i].lenx + 15) / 16, (gm.fine_info[i].lenz + 15) / 16);
             dim3 block_fi(16, 16);
-            update_velocity_fine<<<grid_fi, block_fi, 0, stream_fi[i]>>>(gm.core_d, gm.model_d, cur, i);
+            update_velocity_fine<<<grid_fi, block_fi, 0, stream_fi[i]>>>(gm.core_d, gm.model_d, i, cur);
         }
 
         cudaStreamSynchronize(stream_co);
         for (int i = 0; i < gm.fine_info.size(); i++) {
             cudaStreamSynchronize(stream_fi[i]);
         }
-
-        output_record(gm, params.posz - 5, fp_record_vz, cur);
+        
+        if (it % gap == 0) {
+            output_record(gm, params.posz - 5, fp_record_vz, cur);
+        }
         if (it % 50 == 0) {
             smooth_fine(gm, stream_manager, cur);
         }
-
         if (it % params.snapshot == 0) {
             output_snapshots(gm, it, params.dt, cur);
             printf("finished %0.2f%%\r", 100.0 * it / params.nt);
@@ -140,15 +145,15 @@ void smooth_fine(GridManager &gm, StreamManager &sm, int time) {
     dim3 block(16, 16);
     for (int i = 0; i < gm.fine_info.size(); i++) {
         dim3 grid_fi((gm.fine_info[i].lenx + 15) / 16, (gm.fine_info[i].lenz + 15) / 16);
-        smooth_fine_vx<<<grid_fi, block, 0, sm.stream_vx>>>(gm.core_d.vx, gm.core_temp.vx, time, i, 3);
-        smooth_fine_vz<<<grid_fi, block, 0, sm.stream_vz>>>(gm.core_d.vz, gm.core_temp.vz, time, i, 3);
-        smooth_fine_txz<<<grid_fi, block, 0, sm.stream_txz>>>(gm.core_d.txz, gm.core_temp.txz, time, i, 3);
-        smooth_fine_sig<<<grid_fi, block, 0, sm.stream_sx>>>(gm.core_d.sx, gm.core_temp.sx, time, i, 3);
-        smooth_fine_sig<<<grid_fi, block, 0, sm.stream_sz>>>(gm.core_d.sz, gm.core_temp.sz, time, i, 3);
-        smooth_fine_p<<<grid_fi, block, 0, sm.stream_p>>>(gm.core_d.p, gm.core_temp.p, time, i, 3);
-        smooth_fine_rx<<<grid_fi, block, 0, sm.stream_rx>>>(gm.core_d.rx, gm.core_temp.rx, time, i, 3);
-        smooth_fine_rz<<<grid_fi, block, 0, sm.stream_rz>>>(gm.core_d.rz, gm.core_temp.rz, time, i, 3);
-        smooth_fine_rxz<<<grid_fi, block, 0, sm.stream_rxz>>>(gm.core_d.rxz, gm.core_temp.rxz, time, i, 3);
+        smooth_fine_vx<<<grid_fi, block, 0, sm.stream_vx>>>(gm.core_d.vx, gm.core_temp.vx, i, time, 3);
+        smooth_fine_vz<<<grid_fi, block, 0, sm.stream_vz>>>(gm.core_d.vz, gm.core_temp.vz, i, time, 3);
+        smooth_fine_txz<<<grid_fi, block, 0, sm.stream_txz>>>(gm.core_d.txz, gm.core_temp.txz, i, time, 3);
+        smooth_fine_sig<<<grid_fi, block, 0, sm.stream_sx>>>(gm.core_d.sx, gm.core_temp.sx, i, time, 3);
+        smooth_fine_sig<<<grid_fi, block, 0, sm.stream_sz>>>(gm.core_d.sz, gm.core_temp.sz, i, time, 3);
+        smooth_fine_p<<<grid_fi, block, 0, sm.stream_p>>>(gm.core_d.p, gm.core_temp.p, i, time, 3);
+        smooth_fine_rx<<<grid_fi, block, 0, sm.stream_rx>>>(gm.core_d.rx, gm.core_temp.rx, i, time, 3);
+        smooth_fine_rz<<<grid_fi, block, 0, sm.stream_rz>>>(gm.core_d.rz, gm.core_temp.rz, i, time, 3);
+        smooth_fine_rxz<<<grid_fi, block, 0, sm.stream_rxz>>>(gm.core_d.rxz, gm.core_temp.rxz, i, time, 3);
     }
 
     int bytes_vx = (gm.offset_time_vx - gm.offset_coarse_vx) * sizeof(float);

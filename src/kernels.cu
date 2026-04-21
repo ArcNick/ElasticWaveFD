@@ -349,7 +349,7 @@ __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, i
     }
 }
 
-__global__ void update_sigma_fine(Core core, Model model, int cur, int zone) {
+__global__ void update_sigma_fine(Core core, Model model, int zone, int cur) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -417,7 +417,7 @@ __global__ void update_sigma_fine(Core core, Model model, int cur, int zone) {
     }
 }
 
-__global__ void update_tau_fine(Core core, Model model, int cur, int zone) {
+__global__ void update_tau_fine(Core core, Model model, int zone, int cur) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -463,7 +463,7 @@ __global__ void update_tau_fine(Core core, Model model, int cur, int zone) {
     }
 }
 
-__global__ void update_velocity_fine(Core core, Model model, int cur, int zone) {
+__global__ void update_velocity_fine(Core core, Model model, int zone, int cur) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -497,7 +497,7 @@ __global__ void update_velocity_fine(Core core, Model model, int cur, int zone) 
     }
 }
 
-__global__ void apply_fluid_boundary_fine(Core core, int cur, int zone) {
+__global__ void apply_fluid_boundary_fine(Core core, int zone, int cur) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
 
@@ -516,7 +516,7 @@ __global__ void apply_fluid_boundary_fine(Core core, int cur, int zone) {
     }
 }
 
-__global__ void smooth_fine_vx(float *vx, float *temp, int cur, int zone, int lvl) {
+__global__ void smooth_fine_vx(float *vx, float *temp, int zone, int cur, int lvl) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
     if (ix >= fines[zone].lenx - 1 || iz >= fines[zone].lenz) return;
@@ -566,7 +566,7 @@ __global__ void smooth_fine_vx(float *vx, float *temp, int cur, int zone, int lv
     temp[idx_dst] = sum / total_weight;
 }
 
-__global__ void smooth_fine_vz(float *vz, float *temp, int cur, int zone, int lvl) {
+__global__ void smooth_fine_vz(float *vz, float *temp, int zone, int cur, int lvl) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
     if (ix >= fines[zone].lenx || iz >= fines[zone].lenz - 1) return;
@@ -616,7 +616,7 @@ __global__ void smooth_fine_vz(float *vz, float *temp, int cur, int zone, int lv
     temp[idx_dst] = sum / total_weight;
 }
 
-__global__ void smooth_fine_sig(float *sig, float *temp, int cur, int zone, int lvl) {
+__global__ void smooth_fine_sig(float *sig, float *temp, int zone, int cur, int lvl) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
     if (ix >= fines[zone].lenx || iz >= fines[zone].lenz) return;
@@ -666,7 +666,7 @@ __global__ void smooth_fine_sig(float *sig, float *temp, int cur, int zone, int 
     temp[idx_dst] = sum / total_weight;
 }
 
-__global__ void smooth_fine_txz(float *txz, float *temp, int cur, int zone, int lvl) {
+__global__ void smooth_fine_txz(float *txz, float *temp, int zone, int cur, int lvl) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
     if (ix >= fines[zone].lenx - 1 || iz >= fines[zone].lenz - 1) return;
@@ -717,7 +717,7 @@ __global__ void smooth_fine_txz(float *txz, float *temp, int cur, int zone, int 
 }
 
 // 平滑压力场 p（流体专用）
-__global__ void smooth_fine_p(float *p, float *temp, int cur, int zone, int lvl) {
+__global__ void smooth_fine_p(float *p, float *temp, int zone, int cur, int lvl) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
     if (ix >= fines[zone].lenx || iz >= fines[zone].lenz) return;
@@ -780,7 +780,7 @@ __global__ void smooth_fine_p(float *p, float *temp, int cur, int zone, int lvl)
 }
 
 // 平滑记忆变量 rx
-__global__ void smooth_fine_rx(float *rx, float *temp, int cur, int zone, int lvl) {
+__global__ void smooth_fine_rx(float *rx, float *temp, int zone, int cur, int lvl) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
     if (ix >= fines[zone].lenx || iz >= fines[zone].lenz) return;
@@ -842,7 +842,7 @@ __global__ void smooth_fine_rx(float *rx, float *temp, int cur, int zone, int lv
 }
 
 // 平滑记忆变量 rz（整网格，与 sx 同位置）
-__global__ void smooth_fine_rz(float *rz, float *temp, int cur, int zone, int lvl) {
+__global__ void smooth_fine_rz(float *rz, float *temp, int zone, int cur, int lvl) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
     if (ix >= fines[zone].lenx || iz >= fines[zone].lenz) return;
@@ -902,7 +902,7 @@ __global__ void smooth_fine_rz(float *rz, float *temp, int cur, int zone, int lv
     temp[idx_dst] = sum / total_weight;
 }
 
-__global__ void smooth_fine_rxz(float *rxz, float *temp, int cur, int zone, int lvl) {
+__global__ void smooth_fine_rxz(float *rxz, float *temp, int zone, int cur, int lvl) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
     int iz = blockIdx.y * blockDim.y + threadIdx.y;
     if (ix >= fines[zone].lenx - 1 || iz >= fines[zone].lenz - 1) return;

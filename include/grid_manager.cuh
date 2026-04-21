@@ -7,6 +7,7 @@
 
 #define LUT_SIZE 1000
 #define LAGRANGE_ORDER 8
+#define NSLS 3
 
 enum FINE_FLAG { FINE_OFF = 0, FINE_ON = 1 };
 enum MAT_FLAG { SOLID = 0, VESOLID = 1, FLUID = 2 };

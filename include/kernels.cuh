@@ -20,19 +20,19 @@ __global__ void apply_source(Core core, float src, int cur);
 __global__ void update_sigma_coarse(Core core, Model model, PsiVel psi_vel, int cur, int it);
 __global__ void update_tau_coarse(Core core, Model model, PsiVel psi_vel, int cur, int it);
 __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, int cur, int it);
-__global__ void update_sigma_fine(Core core, Model model, int cur, int zone);
-__global__ void update_tau_fine(Core core, Model model, int cur, int zone);
-__global__ void update_velocity_fine(Core core, Model model, int cur, int zone);
+__global__ void update_sigma_fine(Core core, Model model, int zone, int cur);
+__global__ void update_tau_fine(Core core, Model model, int zone, int cur);
+__global__ void update_velocity_fine(Core core, Model model, int zone, int cur);
 __global__ void apply_fluid_boundary_coarse(Core core, int cur);
-__global__ void apply_fluid_boundary_fine(Core core, int cur, int zone);
+__global__ void apply_fluid_boundary_fine(Core core, int zone, int cur);
 
-__global__ void smooth_fine_vx(float *vx, float *temp, int cur, int zone, int lvl);
-__global__ void smooth_fine_vz(float *vz, float *temp, int cur, int zone, int lvl);
-__global__ void smooth_fine_txz(float *txz, float *temp, int cur, int zone, int lvl);
-__global__ void smooth_fine_sig(float *sig, float *temp, int cur, int zone, int lvl);
-__global__ void smooth_fine_p(float *p, float *temp, int cur, int zone, int lvl);
-__global__ void smooth_fine_rx(float *rx, float *temp, int cur, int zone, int lvl);
-__global__ void smooth_fine_rz(float *rz, float *temp, int cur, int zone, int lvl);
-__global__ void smooth_fine_rxz(float *rxz, float *temp, int cur, int zone, int lvl);
+__global__ void smooth_fine_vx(float *vx, float *temp, int zone, int cur, int lvl);
+__global__ void smooth_fine_vz(float *vz, float *temp, int zone, int cur, int lvl);
+__global__ void smooth_fine_txz(float *txz, float *temp, int zone, int cur, int lvl);
+__global__ void smooth_fine_sig(float *sig, float *temp, int zone, int cur, int lvl);
+__global__ void smooth_fine_p(float *p, float *temp, int zone, int cur, int lvl);
+__global__ void smooth_fine_rx(float *rx, float *temp, int zone, int cur, int lvl);
+__global__ void smooth_fine_rz(float *rz, float *temp, int zone, int cur, int lvl);
+__global__ void smooth_fine_rxz(float *rxz, float *temp, int zone, int cur, int lvl);
 
 #endif
