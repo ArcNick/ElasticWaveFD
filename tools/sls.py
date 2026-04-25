@@ -51,8 +51,12 @@ def generate_tau_sigmas(L: int, f_min: float, f_max: float) -> np.ndarray:
     """
     1/tau_sigma 的对数均匀分布在 [f_min/2, 2*f_max]
     """
-    f_start = f_min / 2
-    f_end   = f_max * 2
+    if L == 3:
+        f_start = f_min
+        f_end = f_max
+    else:
+        f_start = f_min / 2
+        f_end   = f_max * 2
     f_centers = np.logspace(np.log10(f_start), np.log10(f_end), L)
     tau_sigmas = 1.0 / (2 * np.pi * f_centers)
     return tau_sigmas

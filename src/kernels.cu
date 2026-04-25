@@ -150,7 +150,9 @@ __global__ void update_sigma_coarse(Core core, Model model, PsiVel psi_vel, int 
                 + model.C13[IdxSigCo(ix, iz, 0)] * (
                     1 + model.taup[IdxSigCo(ix, iz, 0)]
                 ) * dvz_dz
-                + model.inv_tsig[IdxSigCo(ix, iz, 0)] * core.rx[IdxSigCo(ix, iz, cur ^ 1)]
+                + model.inv_tsig1[IdxSigCo(ix, iz, 0)] * core.rx1[IdxSigCo(ix, iz, cur ^ 1)]
+                + model.inv_tsig2[IdxSigCo(ix, iz, 0)] * core.rx2[IdxSigCo(ix, iz, cur ^ 1)]
+                + model.inv_tsig3[IdxSigCo(ix, iz, 0)] * core.rx3[IdxSigCo(ix, iz, cur ^ 1)]
             );
             core.sz[IdxSigCo(ix, iz, cur)] = core.sz[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
                 + model.C13[IdxSigCo(ix, iz, 0)] * (
@@ -159,15 +161,37 @@ __global__ void update_sigma_coarse(Core core, Model model, PsiVel psi_vel, int 
                 + model.C33[IdxSigCo(ix, iz, 0)] * (
                     1 + model.taup[IdxSigCo(ix, iz, 0)]
                 ) * dvz_dz
-                + model.inv_tsig[IdxSigCo(ix, iz, 0)] * core.rz[IdxSigCo(ix, iz, cur ^ 1)]
+                + model.inv_tsig1[IdxSigCo(ix, iz, 0)] * core.rz1[IdxSigCo(ix, iz, cur ^ 1)]
+                + model.inv_tsig2[IdxSigCo(ix, iz, 0)] * core.rz2[IdxSigCo(ix, iz, cur ^ 1)]
+                + model.inv_tsig3[IdxSigCo(ix, iz, 0)] * core.rz3[IdxSigCo(ix, iz, cur ^ 1)]
             );
-            core.rx[IdxSigCo(ix, iz, cur)] = core.rx[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
-                - model.inv_tsig[IdxSigCo(ix, iz, 0)] * core.rx[IdxSigCo(ix, iz, cur ^ 1)]
+            core.rx1[IdxSigCo(ix, iz, cur)] = core.rx1[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
+                - model.inv_tsig1[IdxSigCo(ix, iz, 0)] * core.rx1[IdxSigCo(ix, iz, cur ^ 1)]
                 - model.C11[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvx_dx
                 - model.C13[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvz_dz
             );
-            core.rz[IdxSigCo(ix, iz, cur)] = core.rz[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
-                - model.inv_tsig[IdxSigCo(ix, iz, 0)] * core.rz[IdxSigCo(ix, iz, cur ^ 1)]
+            core.rx2[IdxSigCo(ix, iz, cur)] = core.rx2[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
+                - model.inv_tsig2[IdxSigCo(ix, iz, 0)] * core.rx2[IdxSigCo(ix, iz, cur ^ 1)]
+                - model.C11[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvx_dx
+                - model.C13[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvz_dz
+            );
+            core.rx3[IdxSigCo(ix, iz, cur)] = core.rx3[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
+                - model.inv_tsig3[IdxSigCo(ix, iz, 0)] * core.rx3[IdxSigCo(ix, iz, cur ^ 1)]
+                - model.C11[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvx_dx
+                - model.C13[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvz_dz
+            );
+            core.rz1[IdxSigCo(ix, iz, cur)] = core.rz1[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
+                - model.inv_tsig1[IdxSigCo(ix, iz, 0)] * core.rz1[IdxSigCo(ix, iz, cur ^ 1)]
+                - model.C13[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvx_dx
+                - model.C33[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvz_dz
+            );
+            core.rz2[IdxSigCo(ix, iz, cur)] = core.rz2[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
+                - model.inv_tsig2[IdxSigCo(ix, iz, 0)] * core.rz2[IdxSigCo(ix, iz, cur ^ 1)]
+                - model.C13[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvx_dx
+                - model.C33[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvz_dz
+            );
+            core.rz3[IdxSigCo(ix, iz, cur)] = core.rz3[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
+                - model.inv_tsig3[IdxSigCo(ix, iz, 0)] * core.rz3[IdxSigCo(ix, iz, cur ^ 1)]
                 - model.C13[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvx_dx
                 - model.C33[IdxSigCo(ix, iz, 0)] * model.taup[IdxSigCo(ix, iz, 0)] * dvz_dz
             );
@@ -238,40 +262,53 @@ __global__ void update_tau_coarse(Core core, Model model, PsiVel psi_vel, int cu
             dvx_dz = dvx_dz_coarse(core.vx, ix, iz, cur ^ 1);
             dvz_dx = dvz_dx_coarse(core.vz, ix, iz, cur ^ 1);
 
+            float taus = samp_sls_coarse(model.taus, ix, iz);
+            float inv_ts1 = samp_sls_coarse(model.inv_tsig1, ix, iz);
+            float inv_ts2 = samp_sls_coarse(model.inv_tsig2, ix, iz);
+            float inv_ts3 = samp_sls_coarse(model.inv_tsig3, ix, iz);
+            float C55 = samp_C55_coarse(model.C55, ix, iz);
             core.txz[IdxTxzCo(ix, iz, cur)] = core.txz[IdxTxzCo(ix, iz, cur ^ 1)] + dt_d * (
-                + samp_C55_coarse(model.C55, ix, iz) * (dvz_dx + dvx_dz) * (
-                    1 + samp_taus_coarse(model.taus, ix, iz)
-                ) 
-                + model.inv_tsig[IdxTxzCo(ix, iz, 0)] * core.rxz[IdxTxzCo(ix, iz, cur ^ 1)]
+                + C55 * (dvz_dx + dvx_dz) * (1 + taus) 
+                + inv_ts1 * core.rxz1[IdxTxzCo(ix, iz, cur ^ 1)]
+                + inv_ts2 * core.rxz2[IdxTxzCo(ix, iz, cur ^ 1)]
+                + inv_ts3 * core.rxz3[IdxTxzCo(ix, iz, cur ^ 1)]
             );
-            core.rxz[IdxTxzCo(ix, iz, cur)] = core.rxz[IdxTxzCo(ix, iz, cur ^ 1)] + dt_d * (
-                - model.inv_tsig[IdxTxzCo(ix, iz, 0)] * core.rxz[IdxTxzCo(ix, iz, cur ^ 1)]
-                - model.C55[IdxTxzCo(ix, iz, 0)] * model.taus[IdxTxzCo(ix, iz, 0)] * (dvz_dx + dvx_dz)
+            core.rxz1[IdxTxzCo(ix, iz, cur)] = core.rxz1[IdxTxzCo(ix, iz, cur ^ 1)] + dt_d * (
+                - inv_ts1 * core.rxz1[IdxTxzCo(ix, iz, cur ^ 1)]
+                - C55 * taus * (dvz_dx + dvx_dz)
+            );
+            core.rxz2[IdxTxzCo(ix, iz, cur)] = core.rxz2[IdxTxzCo(ix, iz, cur ^ 1)] + dt_d * (
+                - inv_ts2 * core.rxz2[IdxTxzCo(ix, iz, cur ^ 1)]
+                - C55 * taus * (dvz_dx + dvx_dz)
+            );
+            core.rxz3[IdxTxzCo(ix, iz, cur)] = core.rxz3[IdxTxzCo(ix, iz, cur ^ 1)] + dt_d * (
+                - inv_ts3 * core.rxz3[IdxTxzCo(ix, iz, cur ^ 1)]
+                - C55 * taus * (dvz_dx + dvx_dz)
             );
         }
         break;
     } 
 }
 
-__global__ void apply_fluid_boundary_coarse(Core core, int cur) {
-    int ix = blockIdx.x * blockDim.x + threadIdx.x;
-    int iz = blockIdx.y * blockDim.y + threadIdx.y;
+// __global__ void apply_fluid_boundary_coarse(Core core, int cur) {
+//     int ix = blockIdx.x * blockDim.x + threadIdx.x;
+//     int iz = blockIdx.y * blockDim.y + threadIdx.y;
 
-    if (ix < 3 || ix >= nx - 4 || iz < 3 || iz >= nz - 4) {
-        return;
-    }
-    if (MAT(iz * nx + ix) == FLUID) {
-        core.txz[IdxTxzCo(ix, iz, cur)] = 0;
-        core.txz[IdxTxzCo(max(0, ix - 1), iz, cur)] = 0;
-        core.txz[IdxTxzCo(ix, max(0, iz - 1), cur)] = 0;
-        core.txz[IdxTxzCo(max(0, ix - 1), max(0, iz - 1), cur)] = 0;
+//     if (ix < 3 || ix >= nx - 4 || iz < 3 || iz >= nz - 4) {
+//         return;
+//     }
+//     if (MAT(iz * nx + ix) == FLUID) {
+//         core.txz[IdxTxzCo(ix, iz, cur)] = 0;
+//         core.txz[IdxTxzCo(max(0, ix - 1), iz, cur)] = 0;
+//         core.txz[IdxTxzCo(ix, max(0, iz - 1), cur)] = 0;
+//         core.txz[IdxTxzCo(max(0, ix - 1), max(0, iz - 1), cur)] = 0;
 
-        core.rxz[IdxTxzCo(ix, iz, cur)] = 0;
-        core.rxz[IdxTxzCo(max(0, ix - 1), iz, cur)] = 0;
-        core.rxz[IdxTxzCo(ix, max(0, iz - 1), cur)] = 0;
-        core.rxz[IdxTxzCo(max(0, ix - 1), max(0, iz - 1), cur)] = 0;
-    }
-}
+//         core.rxz[IdxTxzCo(ix, iz, cur)] = 0;
+//         core.rxz[IdxTxzCo(max(0, ix - 1), iz, cur)] = 0;
+//         core.rxz[IdxTxzCo(ix, max(0, iz - 1), cur)] = 0;
+//         core.rxz[IdxTxzCo(max(0, ix - 1), max(0, iz - 1), cur)] = 0;
+//     }
+// }
 
 __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, int cur, int it) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;
@@ -395,20 +432,44 @@ __global__ void update_sigma_fine(Core core, Model model, int zone, int cur) {
         core.sx[IdxSigFi(ix, iz, zone, cur)] = core.sx[IdxSigFi(ix, iz, zone, cur ^ 1)] + dt_d * (
             + model.C11[IdxSigFi(ix, iz, zone, 0)] * (1 + model.taup[IdxSigFi(ix, iz, zone, 0)]) * dvx_dx
             + model.C13[IdxSigFi(ix, iz, zone, 0)] * (1 + model.taup[IdxSigFi(ix, iz, zone, 0)]) * dvz_dz
-            + model.inv_tsig[IdxSigFi(ix, iz, zone, 0)] * core.rx[IdxSigFi(ix, iz, zone, cur ^ 1)]
+            + model.inv_tsig1[IdxSigFi(ix, iz, zone, 0)] * core.rx1[IdxSigFi(ix, iz, zone, cur ^ 1)]
+            + model.inv_tsig2[IdxSigFi(ix, iz, zone, 0)] * core.rx2[IdxSigFi(ix, iz, zone, cur ^ 1)]
+            + model.inv_tsig3[IdxSigFi(ix, iz, zone, 0)] * core.rx3[IdxSigFi(ix, iz, zone, cur ^ 1)]
         );
         core.sz[IdxSigFi(ix, iz, zone, cur)] = core.sz[IdxSigFi(ix, iz, zone, cur ^ 1)] + dt_d * (
             + model.C13[IdxSigFi(ix, iz, zone, 0)] * (1 + model.taup[IdxSigFi(ix, iz, zone, 0)]) * dvx_dx
             + model.C33[IdxSigFi(ix, iz, zone, 0)] * (1 + model.taup[IdxSigFi(ix, iz, zone, 0)]) * dvz_dz
-            + model.inv_tsig[IdxSigFi(ix, iz, zone, 0)] * core.rz[IdxSigFi(ix, iz, zone, cur ^ 1)]
+            + model.inv_tsig1[IdxSigFi(ix, iz, zone, 0)] * core.rz1[IdxSigFi(ix, iz, zone, cur ^ 1)]
+            + model.inv_tsig2[IdxSigFi(ix, iz, zone, 0)] * core.rz2[IdxSigFi(ix, iz, zone, cur ^ 1)]
+            + model.inv_tsig3[IdxSigFi(ix, iz, zone, 0)] * core.rz3[IdxSigFi(ix, iz, zone, cur ^ 1)]
         );
-        core.rx[IdxSigFi(ix, iz, zone, cur)] = core.rx[IdxSigFi(ix, iz, zone, cur ^ 1)] + dt_d * (
-            - model.inv_tsig[IdxSigFi(ix, iz, zone, 0)] * core.rx[IdxSigFi(ix, iz, zone, cur ^ 1)]
+        core.rx1[IdxSigFi(ix, iz, zone, cur)] = core.rx1[IdxSigFi(ix, iz, zone, cur ^ 1)] + dt_d * (
+            - model.inv_tsig1[IdxSigFi(ix, iz, zone, 0)] * core.rx1[IdxSigFi(ix, iz, zone, cur ^ 1)]
             - model.C11[IdxSigFi(ix, iz, zone, 0)] * model.taup[IdxSigFi(ix, iz, zone, 0)] * dvx_dx
             - model.C13[IdxSigFi(ix, iz, zone, 0)] * model.taup[IdxSigFi(ix, iz, zone, 0)] * dvz_dz
         );
-        core.rz[IdxSigFi(ix, iz, zone, cur)] = core.rz[IdxSigFi(ix, iz, zone, cur ^ 1)] + dt_d * (
-            - model.inv_tsig[IdxSigFi(ix, iz, zone, 0)] * core.rz[IdxSigFi(ix, iz, zone, cur ^ 1)]
+        core.rx2[IdxSigFi(ix, iz, zone, cur)] = core.rx2[IdxSigFi(ix, iz, zone, cur ^ 1)] + dt_d * (
+            - model.inv_tsig2[IdxSigFi(ix, iz, zone, 0)] * core.rx2[IdxSigFi(ix, iz, zone, cur ^ 1)]
+            - model.C11[IdxSigFi(ix, iz, zone, 0)] * model.taup[IdxSigFi(ix, iz, zone, 0)] * dvx_dx
+            - model.C13[IdxSigFi(ix, iz, zone, 0)] * model.taup[IdxSigFi(ix, iz, zone, 0)] * dvz_dz
+        );
+        core.rx3[IdxSigFi(ix, iz, zone, cur)] = core.rx3[IdxSigFi(ix, iz, zone, cur ^ 1)] + dt_d * (
+            - model.inv_tsig3[IdxSigFi(ix, iz, zone, 0)] * core.rx3[IdxSigFi(ix, iz, zone, cur ^ 1)]
+            - model.C11[IdxSigFi(ix, iz, zone, 0)] * model.taup[IdxSigFi(ix, iz, zone, 0)] * dvx_dx
+            - model.C13[IdxSigFi(ix, iz, zone, 0)] * model.taup[IdxSigFi(ix, iz, zone, 0)] * dvz_dz
+        );
+        core.rz1[IdxSigFi(ix, iz, zone, cur)] = core.rz1[IdxSigFi(ix, iz, zone, cur ^ 1)] + dt_d * (
+            - model.inv_tsig1[IdxSigFi(ix, iz, zone, 0)] * core.rz1[IdxSigFi(ix, iz, zone, cur ^ 1)]
+            - model.C13[IdxSigFi(ix, iz, zone, 0)] * model.taup[IdxSigFi(ix, iz, zone, 0)] * dvx_dx
+            - model.C33[IdxSigFi(ix, iz, zone, 0)] * model.taup[IdxSigFi(ix, iz, zone, 0)] * dvz_dz
+        );
+        core.rz2[IdxSigFi(ix, iz, zone, cur)] = core.rz2[IdxSigFi(ix, iz, zone, cur ^ 1)] + dt_d * (
+            - model.inv_tsig2[IdxSigFi(ix, iz, zone, 0)] * core.rz2[IdxSigFi(ix, iz, zone, cur ^ 1)]
+            - model.C13[IdxSigFi(ix, iz, zone, 0)] * model.taup[IdxSigFi(ix, iz, zone, 0)] * dvx_dx
+            - model.C33[IdxSigFi(ix, iz, zone, 0)] * model.taup[IdxSigFi(ix, iz, zone, 0)] * dvz_dz
+        );
+        core.rz3[IdxSigFi(ix, iz, zone, cur)] = core.rz3[IdxSigFi(ix, iz, zone, cur ^ 1)] + dt_d * (
+            - model.inv_tsig3[IdxSigFi(ix, iz, zone, 0)] * core.rz3[IdxSigFi(ix, iz, zone, cur ^ 1)]
             - model.C13[IdxSigFi(ix, iz, zone, 0)] * model.taup[IdxSigFi(ix, iz, zone, 0)] * dvx_dx
             - model.C33[IdxSigFi(ix, iz, zone, 0)] * model.taup[IdxSigFi(ix, iz, zone, 0)] * dvz_dz
         );
@@ -448,15 +509,29 @@ __global__ void update_tau_fine(Core core, Model model, int zone, int cur) {
     case 1: {
         float dvx_dz = dvx_dz_8th(core.vx, ix, iz, zone, cur ^ 1);
         float dvz_dx = dvz_dx_8th(core.vz, ix, iz, zone, cur ^ 1);
+
+        float taus = samp_sls_fine(model.taus, ix, iz, zone);
+        float inv_ts1 = samp_sls_fine(model.inv_tsig1, ix, iz, zone);
+        float inv_ts2 = samp_sls_fine(model.inv_tsig2, ix, iz, zone);
+        float inv_ts3 = samp_sls_fine(model.inv_tsig3, ix, iz, zone);
+        float C55 = samp_C55_fine(model.C55, ix, iz, zone);
         core.txz[IdxTxzFi(ix, iz, zone, cur)] = core.txz[IdxTxzFi(ix, iz, zone, cur ^ 1)] + dt_d * (
-            + samp_C55_fine(model.C55, ix, iz, zone) * (dvz_dx + dvx_dz) * (
-                1 + samp_taus_fine(model.taus, ix, iz, zone)
-            ) 
-            + model.inv_tsig[IdxTxzFi(ix, iz, zone, 0)] * core.rxz[IdxTxzFi(ix, iz, zone, cur ^ 1)]
+            + C55 * (dvz_dx + dvx_dz) * (1 + taus) 
+            + inv_ts1 * core.rxz1[IdxTxzFi(ix, iz, zone, cur ^ 1)]
+            + inv_ts2 * core.rxz2[IdxTxzFi(ix, iz, zone, cur ^ 1)]
+            + inv_ts3 * core.rxz3[IdxTxzFi(ix, iz, zone, cur ^ 1)]
         );
-        core.rxz[IdxTxzFi(ix, iz, zone, cur)] = core.rxz[IdxTxzFi(ix, iz, zone, cur ^ 1)] + dt_d * (
-            - model.inv_tsig[IdxTxzFi(ix, iz, zone, 0)] * core.rxz[IdxTxzFi(ix, iz, zone, cur ^ 1)]
-            - model.C55[IdxTxzFi(ix, iz, zone, 0)] * model.taus[IdxTxzFi(ix, iz, zone, 0)] * (dvz_dx + dvx_dz)
+        core.rxz1[IdxTxzFi(ix, iz, zone, cur)] = core.rxz1[IdxTxzFi(ix, iz, zone, cur ^ 1)] + dt_d * (
+            - inv_ts1 * core.rxz1[IdxTxzFi(ix, iz, zone, cur ^ 1)]
+            - C55 * taus * (dvz_dx + dvx_dz)
+        );
+        core.rxz2[IdxTxzFi(ix, iz, zone, cur)] = core.rxz2[IdxTxzFi(ix, iz, zone, cur ^ 1)] + dt_d * (
+            - inv_ts2 * core.rxz2[IdxTxzFi(ix, iz, zone, cur ^ 1)]
+            - C55 * taus * (dvz_dx + dvx_dz)
+        );
+        core.rxz3[IdxTxzFi(ix, iz, zone, cur)] = core.rxz3[IdxTxzFi(ix, iz, zone, cur ^ 1)] + dt_d * (
+            - inv_ts3 * core.rxz3[IdxTxzFi(ix, iz, zone, cur ^ 1)]
+            - C55 * taus * (dvz_dx + dvx_dz)
         );
         break;
     }
@@ -497,24 +572,24 @@ __global__ void update_velocity_fine(Core core, Model model, int zone, int cur) 
     }
 }
 
-__global__ void apply_fluid_boundary_fine(Core core, int zone, int cur) {
-    int ix = blockIdx.x * blockDim.x + threadIdx.x;
-    int iz = blockIdx.y * blockDim.y + threadIdx.y;
+// __global__ void apply_fluid_boundary_fine(Core core, int zone, int cur) {
+//     int ix = blockIdx.x * blockDim.x + threadIdx.x;
+//     int iz = blockIdx.y * blockDim.y + threadIdx.y;
 
-    if (ix >= fines[zone].lenx || iz >= fines[zone].lenz) {
-        return;
-    }
-    if (tex1Dfetch<int>(mat_tex, IdxSigFi(ix, iz, zone, 0)) == FLUID) {
-        core.txz[IdxTxzFi(ix, iz, zone, cur)] = 0;
-        core.txz[IdxTxzFi(max(0, ix - 1), iz, zone, cur)] = 0;
-        core.txz[IdxTxzFi(ix, max(0, iz - 1), zone, cur)] = 0;
-        core.txz[IdxTxzFi(max(0, ix - 1), max(0, iz - 1), zone, cur)] = 0;
-        core.rxz[IdxTxzFi(ix, iz, zone, cur)] = 0;
-        core.rxz[IdxTxzFi(max(0, ix - 1), iz, zone, cur)] = 0;
-        core.rxz[IdxTxzFi(ix, max(0, iz - 1), zone, cur)] = 0;
-        core.rxz[IdxTxzFi(max(0, ix - 1), max(0, iz - 1), zone, cur)] = 0;
-    }
-}
+//     if (ix >= fines[zone].lenx || iz >= fines[zone].lenz) {
+//         return;
+//     }
+//     if (tex1Dfetch<int>(mat_tex, IdxSigFi(ix, iz, zone, 0)) == FLUID) {
+//         core.txz[IdxTxzFi(ix, iz, zone, cur)] = 0;
+//         core.txz[IdxTxzFi(max(0, ix - 1), iz, zone, cur)] = 0;
+//         core.txz[IdxTxzFi(ix, max(0, iz - 1), zone, cur)] = 0;
+//         core.txz[IdxTxzFi(max(0, ix - 1), max(0, iz - 1), zone, cur)] = 0;
+//         core.rxz[IdxTxzFi(ix, iz, zone, cur)] = 0;
+//         core.rxz[IdxTxzFi(max(0, ix - 1), iz, zone, cur)] = 0;
+//         core.rxz[IdxTxzFi(ix, max(0, iz - 1), zone, cur)] = 0;
+//         core.rxz[IdxTxzFi(max(0, ix - 1), max(0, iz - 1), zone, cur)] = 0;
+//     }
+// }
 
 __global__ void smooth_fine_vx(float *vx, float *temp, int zone, int cur, int lvl) {
     int ix = blockIdx.x * blockDim.x + threadIdx.x;

@@ -105,17 +105,18 @@ void GridManager::load_from_file(const std::string &file) {
     memory_allocate();
 
     // 读取模型参数文件
-    struct Pair { void *ptr; std::string name; } dst[10] = {
+    struct Pair { void *ptr; std::string name; } dst[12] = {
         { model_h.rho, "rho" }, { model_h.C11, "C11" }, { model_h.C13, "C13" },
         { model_h.C33, "C33" }, { model_h.C55, "C55" }, {model_h.zeta, "zeta"}, 
         { model_h.taup, "taup"}, {model_h.taus, "taus"}, { model_h.mat, "material"}, 
-        { model_h.inv_tsig, "inv_tsig"}
+        { model_h.inv_tsig1, "inv_tsig1"}, { model_h.inv_tsig2, "inv_tsig2"}, 
+        { model_h.inv_tsig3, "inv_tsig3"}
     };
     std::string filename;
 
     cJSON *item = nullptr;
     // coarse
-    for (int i = 0; i < 10; i++) {
+    for (int i = 0; i < 12; i++) {
         item = coarse_ptr;
         item = cJSON_GetObjectItem(item, dst[i].name.c_str());
         filename = item->valuestring;
@@ -126,8 +127,6 @@ void GridManager::load_from_file(const std::string &file) {
         }
         if (dst[i].name == "material") {
             fread(static_cast<MAT_FLAG*>(dst[i].ptr), sizeof(MAT_FLAG), nx_coarse * nz_coarse, fp);
-        } else if (dst[i].name == "inv_tsig") {
-            fread(static_cast<float*>(dst[i].ptr), sizeof(float), nx_coarse * nz_coarse, fp);
         } else {
             fread(static_cast<float*>(dst[i].ptr), sizeof(float), nx_coarse * nz_coarse, fp);
         }
@@ -136,7 +135,7 @@ void GridManager::load_from_file(const std::string &file) {
     
     // fine
     for (int i = 0, offset = nx_coarse * nz_coarse; i < num; i++, offset += fine_info[i].lenx * fine_info[i].lenz) {
-        for (int j = 0; j < 10; j++) {
+        for (int j = 0; j < 12; j++) {
             item = fine_ptr;
             item = cJSON_GetArrayItem(item, i);
             item = cJSON_GetObjectItem(item, dst[j].name.c_str());
@@ -190,7 +189,9 @@ void GridManager::memcpy_model_h2d() {
     cudaMemcpy(model_d.zeta, model_h.zeta, bytes_sig, cudaMemcpyHostToDevice);
     cudaMemcpy(model_d.taup, model_h.taup, bytes_sig, cudaMemcpyHostToDevice);
     cudaMemcpy(model_d.taus, model_h.taus, bytes_sig, cudaMemcpyHostToDevice);
-    cudaMemcpy(model_d.inv_tsig, model_h.inv_tsig, bytes_sig, cudaMemcpyHostToDevice);
+    cudaMemcpy(model_d.inv_tsig1, model_h.inv_tsig1, bytes_sig, cudaMemcpyHostToDevice);
+    cudaMemcpy(model_d.inv_tsig2, model_h.inv_tsig2, bytes_sig, cudaMemcpyHostToDevice);
+    cudaMemcpy(model_d.inv_tsig3, model_h.inv_tsig3, bytes_sig, cudaMemcpyHostToDevice);
     cudaMemcpy(model_d.mat, model_h.mat, bytes_mat, cudaMemcpyHostToDevice);
 }
 
@@ -452,9 +453,15 @@ void GridManager::memory_allocate() {
     cudaMalloc((void**)&core_d.sx, offset_time_sig * sizeof(float) * 2);
     cudaMalloc((void**)&core_d.sz, offset_time_sig * sizeof(float) * 2);
     cudaMalloc((void**)&core_d.txz, offset_time_txz * sizeof(float) * 2);
-    cudaMalloc((void**)&core_d.rx, offset_time_sig * sizeof(float) * 2);
-    cudaMalloc((void**)&core_d.rz, offset_time_sig * sizeof(float) * 2);
-    cudaMalloc((void**)&core_d.rxz, offset_time_txz * sizeof(float) * 2);
+    cudaMalloc((void**)&core_d.rx1, offset_time_sig * sizeof(float) * 2);
+    cudaMalloc((void**)&core_d.rz1, offset_time_sig * sizeof(float) * 2);
+    cudaMalloc((void**)&core_d.rxz1, offset_time_txz * sizeof(float) * 2);
+    cudaMalloc((void**)&core_d.rx2, offset_time_sig * sizeof(float) * 2);
+    cudaMalloc((void**)&core_d.rz2, offset_time_sig * sizeof(float) * 2);
+    cudaMalloc((void**)&core_d.rxz2, offset_time_txz * sizeof(float) * 2);
+    cudaMalloc((void**)&core_d.rx3, offset_time_sig * sizeof(float) * 2);
+    cudaMalloc((void**)&core_d.rz3, offset_time_sig * sizeof(float) * 2);
+    cudaMalloc((void**)&core_d.rxz3, offset_time_txz * sizeof(float) * 2);
 
     cudaMalloc((void**)&core_d.p, offset_time_sig * sizeof(float) * 2);
 
@@ -465,9 +472,15 @@ void GridManager::memory_allocate() {
     cudaMemset(core_d.sx, 0, offset_time_sig * sizeof(float) * 2);
     cudaMemset(core_d.sz, 0, offset_time_sig * sizeof(float) * 2);
     cudaMemset(core_d.txz, 0, offset_time_txz * sizeof(float) * 2);
-    cudaMemset(core_d.rx, 0, offset_time_sig * sizeof(float) * 2);
-    cudaMemset(core_d.rz, 0, offset_time_sig * sizeof(float) * 2);
-    cudaMemset(core_d.rxz, 0, offset_time_txz * sizeof(float) * 2);
+    cudaMemset(core_d.rx1, 0, offset_time_sig * sizeof(float) * 2);
+    cudaMemset(core_d.rz1, 0, offset_time_sig * sizeof(float) * 2);
+    cudaMemset(core_d.rxz1, 0, offset_time_txz * sizeof(float) * 2);
+    cudaMemset(core_d.rx2, 0, offset_time_sig * sizeof(float) * 2);
+    cudaMemset(core_d.rz2, 0, offset_time_sig * sizeof(float) * 2);
+    cudaMemset(core_d.rxz2, 0, offset_time_txz * sizeof(float) * 2);
+    cudaMemset(core_d.rx3, 0, offset_time_sig * sizeof(float) * 2);
+    cudaMemset(core_d.rz3, 0, offset_time_sig * sizeof(float) * 2);
+    cudaMemset(core_d.rxz3, 0, offset_time_txz * sizeof(float) * 2);
 
     cudaMemset(core_d.p, 0, offset_time_sig * sizeof(float) * 2);
 
@@ -478,9 +491,15 @@ void GridManager::memory_allocate() {
     cudaMalloc((void**)&core_temp.sx, (offset_time_sig - offset_coarse_sig) * sizeof(float));
     cudaMalloc((void**)&core_temp.sz, (offset_time_sig - offset_coarse_sig) * sizeof(float));
     cudaMalloc((void**)&core_temp.txz, (offset_time_txz - offset_coarse_txz) * sizeof(float));
-    cudaMalloc((void**)&core_temp.rx, (offset_time_sig - offset_coarse_sig) * sizeof(float));
-    cudaMalloc((void**)&core_temp.rz, (offset_time_sig - offset_coarse_sig) * sizeof(float));
-    cudaMalloc((void**)&core_temp.rxz, (offset_time_txz - offset_coarse_txz) * sizeof(float));
+    cudaMalloc((void**)&core_temp.rx1, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMalloc((void**)&core_temp.rz1, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMalloc((void**)&core_temp.rxz1, (offset_time_txz - offset_coarse_txz) * sizeof(float));
+    cudaMalloc((void**)&core_temp.rx2, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMalloc((void**)&core_temp.rz2, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMalloc((void**)&core_temp.rxz2, (offset_time_txz - offset_coarse_txz) * sizeof(float));
+    cudaMalloc((void**)&core_temp.rx3, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMalloc((void**)&core_temp.rz3, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMalloc((void**)&core_temp.rxz3, (offset_time_txz - offset_coarse_txz) * sizeof(float));
 
     cudaMalloc((void**)&core_temp.p, (offset_time_sig - offset_coarse_sig) * sizeof(float));
 
@@ -490,9 +509,15 @@ void GridManager::memory_allocate() {
     cudaMemset(core_temp.sx, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
     cudaMemset(core_temp.sz, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
     cudaMemset(core_temp.txz, 0, (offset_time_txz - offset_coarse_txz) * sizeof(float));
-    cudaMemset(core_temp.rx, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
-    cudaMemset(core_temp.rz, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
-    cudaMemset(core_temp.rxz, 0, (offset_time_txz - offset_coarse_txz) * sizeof(float));
+    cudaMemset(core_temp.rx1, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMemset(core_temp.rz1, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMemset(core_temp.rxz1, 0, (offset_time_txz - offset_coarse_txz) * sizeof(float));
+    cudaMemset(core_temp.rx2, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMemset(core_temp.rz2, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMemset(core_temp.rxz2, 0, (offset_time_txz - offset_coarse_txz) * sizeof(float));
+    cudaMemset(core_temp.rx3, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMemset(core_temp.rz3, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
+    cudaMemset(core_temp.rxz3, 0, (offset_time_txz - offset_coarse_txz) * sizeof(float));
 
     cudaMemset(core_temp.p, 0, (offset_time_sig - offset_coarse_sig) * sizeof(float));
 
@@ -511,7 +536,9 @@ void GridManager::memory_allocate() {
     model_h.zeta = new float[offset_time_sig]();
     model_h.taup = new float[offset_time_sig]();
     model_h.taus = new float[offset_time_sig]();
-    model_h.inv_tsig = new float[offset_time_sig]();
+    model_h.inv_tsig1 = new float[offset_time_sig]();
+    model_h.inv_tsig2 = new float[offset_time_sig]();
+    model_h.inv_tsig3 = new float[offset_time_sig]();
     model_h.mat = new MAT_FLAG[offset_time_sig]();
 
     // device model
@@ -523,7 +550,9 @@ void GridManager::memory_allocate() {
     cudaMalloc((void**)&model_d.zeta, offset_time_sig * sizeof(float));
     cudaMalloc((void**)&model_d.taup, offset_time_sig * sizeof(float));
     cudaMalloc((void**)&model_d.taus, offset_time_sig * sizeof(float));
-    cudaMalloc((void**)&model_d.inv_tsig, offset_time_sig * sizeof(float));
+    cudaMalloc((void**)&model_d.inv_tsig1, offset_time_sig * sizeof(float));
+    cudaMalloc((void**)&model_d.inv_tsig2, offset_time_sig * sizeof(float));
+    cudaMalloc((void**)&model_d.inv_tsig3, offset_time_sig * sizeof(float));
     cudaMalloc((void**)&model_d.mat, offset_time_sig * sizeof(MAT_FLAG));
 
     // compute n arrays total size
@@ -570,9 +599,15 @@ void GridManager::memory_release() {
     if (core_h.sx) { delete[] core_h.sx; core_h.sx = nullptr; }
     if (core_h.sz) { delete[] core_h.sz; core_h.sz = nullptr; }
     if (core_h.txz) { delete[] core_h.txz; core_h.txz = nullptr; }
-    if (core_h.rx) { delete[] core_h.rx; core_h.rx = nullptr; }
-    if (core_h.rz) { delete[] core_h.rz; core_h.rz = nullptr; }
-    if (core_h.rxz) { delete[] core_h.rxz; core_h.rxz = nullptr; }
+    if (core_h.rx1) { delete[] core_h.rx1; core_h.rx1 = nullptr; }
+    if (core_h.rz1) { delete[] core_h.rz1; core_h.rz1 = nullptr; }
+    if (core_h.rxz1) { delete[] core_h.rxz1; core_h.rxz1 = nullptr; }
+    if (core_h.rx2) { delete[] core_h.rx2; core_h.rx2 = nullptr; }
+    if (core_h.rz2) { delete[] core_h.rz2; core_h.rz2 = nullptr; }
+    if (core_h.rxz2) { delete[] core_h.rxz2; core_h.rxz2 = nullptr; }
+    if (core_h.rx3) { delete[] core_h.rx3; core_h.rx3 = nullptr; }
+    if (core_h.rz3) { delete[] core_h.rz3; core_h.rz3 = nullptr; }
+    if (core_h.rxz3) { delete[] core_h.rxz3; core_h.rxz3 = nullptr; }
     if (core_h.p) { delete[] core_h.p; core_h.p = nullptr; }
 
     // device core
@@ -582,9 +617,15 @@ void GridManager::memory_release() {
     if (core_d.sz) { cudaFree(core_d.sz); core_d.sz = nullptr; }
     if (core_d.txz) { cudaFree(core_d.txz); core_d.txz = nullptr; }
     if (core_d.p) { cudaFree(core_d.p); core_d.p = nullptr; }
-    if (core_d.rx) { cudaFree(core_d.rx); core_d.rx = nullptr; }
-    if (core_d.rz) { cudaFree(core_d.rz); core_d.rz = nullptr; }
-    if (core_d.rxz) { cudaFree(core_d.rxz); core_d.rxz = nullptr; }
+    if (core_d.rx1) { cudaFree(core_d.rx1); core_d.rx1 = nullptr; }
+    if (core_d.rz1) { cudaFree(core_d.rz1); core_d.rz1 = nullptr; }
+    if (core_d.rxz1) { cudaFree(core_d.rxz1); core_d.rxz1 = nullptr; }
+    if (core_d.rx2) { cudaFree(core_d.rx2); core_d.rx2 = nullptr; }
+    if (core_d.rz2) { cudaFree(core_d.rz2); core_d.rz2 = nullptr; }
+    if (core_d.rxz2) { cudaFree(core_d.rxz2); core_d.rxz2 = nullptr; }
+    if (core_d.rx3) { cudaFree(core_d.rx3); core_d.rx3 = nullptr; }
+    if (core_d.rz3) { cudaFree(core_d.rz3); core_d.rz3 = nullptr; }
+    if (core_d.rxz3) { cudaFree(core_d.rxz3); core_d.rxz3 = nullptr; }
 
     if (core_temp.vx) { cudaFree(core_temp.vx); core_temp.vx = nullptr; }
     if (core_temp.vz) { cudaFree(core_temp.vz); core_temp.vz = nullptr; }
@@ -592,9 +633,15 @@ void GridManager::memory_release() {
     if (core_temp.sz) { cudaFree(core_temp.sz); core_temp.sz = nullptr; }
     if (core_temp.txz) { cudaFree(core_temp.txz); core_temp.txz = nullptr; }
     if (core_temp.p) { cudaFree(core_temp.p); core_temp.p = nullptr; }
-    if (core_temp.rx) { cudaFree(core_temp.rx); core_temp.rx = nullptr; }
-    if (core_temp.rz) { cudaFree(core_temp.rz); core_temp.rz = nullptr; }
-    if (core_temp.rxz) { cudaFree(core_temp.rxz); core_temp.rxz = nullptr; }
+    if (core_temp.rx1) { cudaFree(core_temp.rx1); core_temp.rx1 = nullptr; }
+    if (core_temp.rz1) { cudaFree(core_temp.rz1); core_temp.rz1 = nullptr; }
+    if (core_temp.rxz1) { cudaFree(core_temp.rxz1); core_temp.rxz1 = nullptr; }
+    if (core_temp.rx2) { cudaFree(core_temp.rx2); core_temp.rx2 = nullptr; }
+    if (core_temp.rz2) { cudaFree(core_temp.rz2); core_temp.rz2 = nullptr; }
+    if (core_temp.rxz2) { cudaFree(core_temp.rxz2); core_temp.rxz2 = nullptr; }
+    if (core_temp.rx3) { cudaFree(core_temp.rx3); core_temp.rx3 = nullptr; }
+    if (core_temp.rz3) { cudaFree(core_temp.rz3); core_temp.rz3 = nullptr; }
+    if (core_temp.rxz3) { cudaFree(core_temp.rxz3); core_temp.rxz3 = nullptr; }
 
     // mask arrays (device)
     if (core_mask.vx) { cudaFree(core_mask.vx); core_mask.vx = nullptr; }
@@ -611,7 +658,9 @@ void GridManager::memory_release() {
     if (model_h.zeta) { delete[] model_h.zeta; model_h.zeta = nullptr; }
     if (model_h.taup) { delete[] model_h.taup; model_h.taup = nullptr; }
     if (model_h.taus) { delete[] model_h.taus; model_h.taus = nullptr; }
-    if (model_h.inv_tsig) { delete[] model_h.inv_tsig; model_h.inv_tsig = nullptr; }
+    if (model_h.inv_tsig1) { delete[] model_h.inv_tsig1; model_h.inv_tsig1 = nullptr; }
+    if (model_h.inv_tsig2) { delete[] model_h.inv_tsig2; model_h.inv_tsig2 = nullptr; }
+    if (model_h.inv_tsig3) { delete[] model_h.inv_tsig3; model_h.inv_tsig3 = nullptr; }
     if (model_h.mat) { delete[] model_h.mat; model_h.mat = nullptr; }
 
     // device model
@@ -623,7 +672,9 @@ void GridManager::memory_release() {
     if (model_d.zeta) { cudaFree(model_d.zeta); model_d.zeta = nullptr; }
     if (model_d.taup) { cudaFree(model_d.taup); model_d.taup = nullptr; }
     if (model_d.taus) { cudaFree(model_d.taus); model_d.taus = nullptr; }
-    if (model_d.inv_tsig) { cudaFree(model_d.inv_tsig); model_d.inv_tsig = nullptr; }
+    if (model_d.inv_tsig1) { cudaFree(model_d.inv_tsig1); model_d.inv_tsig1 = nullptr; }
+    if (model_d.inv_tsig2) { cudaFree(model_d.inv_tsig2); model_d.inv_tsig2 = nullptr; }
+    if (model_d.inv_tsig3) { cudaFree(model_d.inv_tsig3); model_d.inv_tsig3 = nullptr; }
     if (model_d.mat) { cudaFree(model_d.mat); model_d.mat = nullptr; }
 
     // 先销毁纹理对象

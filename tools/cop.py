@@ -165,9 +165,7 @@ def build_full_snapshot(fname, fpath, model, pml):
 def plot_snapshot(fname, fbase, arr, cgrid):
     dx, dz = cgrid['dx'], cgrid['dz']
     nz, nx = arr.shape
-    fig, ax = plt.subplots(figsize=(6, nz / nx * 5))
-    # 固定坐标轴在 figure 中的位置（左,下,宽,高），比例为 0.8，留出边距
-    # ax.set_position([0.1, 0.1, 0.8, 0.8])
+    fig, ax = plt.subplots(figsize=(8.5, nz / nx * 8))
     im = ax.imshow(
         arr, cmap='seismic',
         vmin=FIELD_RANGE[fname][0], 
@@ -175,66 +173,17 @@ def plot_snapshot(fname, fbase, arr, cgrid):
         extent=[0, dx * nx, dz * nz, 0],
         aspect='equal'
     )
-    # 添加颜色条，调整大小和间距
     fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
     ax.set_title(f'{fname} : {fbase}')
     ax.set_xlabel('x (m)')
     ax.set_ylabel('z (m)')
     out = os.path.join(IMAGE_BASE, fname, fbase.replace('.bin', '.png'))
-    fig.savefig(out, dpi=80, bbox_inches=None)
+    fig.savefig(out, dpi=60, bbox_inches=None)
     plt.close(fig)
     print_progress(f'已保存 {out}')
 
-# ========== 地震记录绘图（wigb）==========
-def wigb(a, scal=1.0, x=None, z=None, amx=None):
-    nz,nx = a.shape
-    if x is None: x = np.arange(1,nx+1)
-    if z is None: z = np.arange(1,nz+1)
-    x, z = np.asarray(x), np.asarray(z)
-    if nx <= 1: return
-    dx = np.median(np.diff(x))
-    dz = z[1] - z[0]
-    if amx is None: amx = np.max(np.abs(a))
-    if np.isscalar(amx):
-        a = a * dx / amx * scal
-    else:
-        a_norm = np.zeros_like(a)
-        for i in range(nx):
-            if amx[i] != 0: a_norm[:, i] = a[:, i] * dx / amx[i] * scal
-        a = a_norm
-    ax = plt.gca()
-    ax.set_xlim(np.min(x)-2*dx, np.max(x)+2*dx)
-    ax.set_ylim(np.max(z)+dz, np.min(z)-dz)
-    for i in range(nx):
-        tr = a[:, i]
-        if np.max(np.abs(tr))!=0:
-            s = np.sign(tr)
-            idx = np.where(s[:-1]!=s[1:])[0]
-            zadd = idx+1 + tr[idx]/(tr[idx]-tr[idx+1]) if len(idx)>0 else []
-            zpos = np.where(tr>0)[0]+1
-            apos = tr[tr>0]
-            if len(zpos) == 0 and len(zadd) == 0:
-                ax.plot(tr+x[i], z, 'k', lw=0.1)
-                ax.axvline(x[i], color='white', lw=0.1)
-                continue
-            z_all = np.concatenate((zpos, zadd))
-            a_all = np.concatenate((apos, np.zeros_like(zadd)))
-            sort = np.argsort(z_all)
-            zz, aa = z_all[sort], a_all[sort]
-            a0 = 0.0; 
-            z0 = 1.0 if tr[0] <= 0 else (zadd[0] if len(zadd) > 0 else 1.0)
-            a1 = 0.0
-            z1 = float(nz) if tr[-1] >= 0 else (zadd[-1] if len(zadd) > 0 else float(nz))
-            zz = np.concatenate(([z0], zz, [z1], [z0]))
-            aa = np.concatenate(([a0], aa, [a1], [a0]))
-            ax.fill(aa + x[i], z[0] + (zz-1)*dz, 'k', lw=0)
-            ax.axvline(x[i], color='white', lw=0.1)
-            ax.plot(tr + x[i], z, 'k', lw=0.1)
-        else:
-            ax.axvline(x[i], color='red', lw=0.1)
-    plt.draw()
-
-def plot_record_wigb(bin_path, out_png, nx_total, dt, dx, pml, ftype='full', skip=1, gain=1.0, out_dt=0.0005):
+# ========== 地震记录绘图（仅颜色图，已删除wigb）==========
+def plot_record_cmap(bin_path, out_png, nx_total, dt, dx, pml, ftype='full', skip=1, gain=1.0, out_dt=0.001, fixed_limit=2.0):
     rec = np.fromfile(bin_path, dtype=np.float32)
     nt = len(rec) // nx_total
     if len(rec) % nx_total != 0:
@@ -252,68 +201,24 @@ def plot_record_wigb(bin_path, out_png, nx_total, dt, dx, pml, ftype='full', ski
     step = max(1, int(round(out_dt / dt)))
     rec = rec[::step, :]
     nt_new = rec.shape[0]
-    # 道降采样
     rec = rec[:, ::skip]
     n_trace = rec.shape[1]
     if n_trace == 0:
         print_progress(f'警告: {bin_path} 降采样后无有效道')
         return
-    # 归一化
-    if NORMALIZE_PER_TRACE:
-        global_max = np.max(np.abs(rec))
-        for i in range(n_trace):
-            tm = np.max(np.abs(rec[:,i]))
-            if tm>0: rec[:,i] = rec[:,i] / tm * global_max
-        wigb_amx = 1.0
-    else:
-        wigb_amx = None
-    # 坐标
-    x_coords = (start_trace + np.arange(n_trace) * skip) * dx
-    z_coords = np.arange(nt_new) * out_dt
-    fig, ax = plt.subplots(figsize=(30,15))
-    plt.sca(ax)
-    wigb(rec, scal=gain, x=x_coords, z=z_coords, amx=wigb_amx)
-    fig.savefig(out_png, dpi=100, bbox_inches='equal')
-    plt.close(fig)
-    print_progress(f'地震记录wigb已保存: {out_png}')
-
-# ========== 地震记录绘图（颜色图）==========
-def plot_record_cmap(bin_path, out_png, nx_total, dt, dx, pml, ftype='full', skip=1, gain=1.0, out_dt=0.0005, fixed_limit=2.0):
-    rec = np.fromfile(bin_path, dtype=np.float32)
-    nt = len(rec) // nx_total
-    if len(rec) % nx_total != 0:
-        print_progress(f'错误: {bin_path} 大小 {len(rec)} 不是 nx_total={nx_total} 整数倍')
-        return
-    rec = rec.reshape((nt, nx_total))
-    if CROP_PML_HALO:
-        h = HALO[ftype]
-        l, r = pml + h['left'], nx_total - (pml + h['right'])
-        rec = rec[:, l:r]
-        start_trace = l
-    else:
-        start_trace = 0
-    step = max(1, int(round(out_dt / dt)))
-    rec = rec[::step, :]
-    nt_new = rec.shape[0]
-    rec = rec[:, ::skip]
-    n_trace = rec.shape[1]
-    if n_trace == 0:
-        print_progress(f'警告: {bin_path} 降采样后无有效道')
-        return
-    # 应用与 wigb 相同的缩放：乘以 dx / amx * gain
+    # 应用缩放
     amx = np.max(np.abs(rec))
     if amx > 0:
         rec_scaled = rec * dx / amx * gain
     else:
         rec_scaled = rec * gain
     print_progress(f'  应用 gain={gain:.4e} 后数据范围: [{np.min(rec_scaled):.4e}, {np.max(rec_scaled):.4e}]')
-    # 固定颜色范围，让 gain 影响颜色的可见度
     vmin, vmax = -fixed_limit, fixed_limit
     print_progress(f'  固定颜色范围: [{vmin}, {vmax}]')
     x_coords = (start_trace + np.arange(n_trace) * skip) * dx
     z_coords = np.arange(nt_new) * out_dt
     extent = [x_coords[0], x_coords[-1], z_coords[-1], z_coords[0]]
-    fig, ax = plt.subplots(figsize=(12, 10))
+    fig, ax = plt.subplots(figsize=(8, 8))
     im = ax.imshow(rec_scaled, aspect='auto', cmap='seismic', extent=extent, origin='upper',
                    vmin=vmin, vmax=vmax)
     fig.colorbar(im, ax=ax)
@@ -336,8 +241,10 @@ def main():
     model = load_json(MODEL_JSON)
     params = load_json(PARAMS_JSON)
     pml = params['cpml']['thickness']
-    dt = params['base']['dt']
-    print_progress(f'原始 dt = {dt:.2e} s, 输出 dt = 0.0005 s (步长 {int(round(0.0005/dt))})')
+    
+    # 硬编码采样间隔为 0.001 秒
+    dt = 0.001
+    print_progress(f'使用固定采样间隔 dt = {dt} s')
 
     # 地震记录（串行）—— 仅处理 vz 文件
     if os.path.exists(RECORD_DIR):
@@ -351,7 +258,7 @@ def main():
                 os.path.join(RECORD_DIR, f),
                 os.path.join(IMAGE_BASE, 'record', f.replace('.bin', '_cmap.png')),
                 nx_tot, dt, model['coarse']['dx'], pml,
-                ftype=ftype, skip=1, gain=5e2, out_dt=0.0005, fixed_limit=2.0
+                ftype=ftype, skip=1, gain=5e2, out_dt=0.001, fixed_limit=2.0
             )
 
     # 波场快照（并行）

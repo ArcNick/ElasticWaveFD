@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import hudson as hd
 import fault as ft
+import sls
 from scipy.ndimage import gaussian_filter
 
 SOLID   = 0
@@ -12,14 +13,14 @@ FLUID   = 2
 # ========== 模型参数 ==========
 # 粗网格尺寸
 nx = 501
-nz = 801
+nz = 701
 dx = 1.5
 dz = 1.5
 
 # 时间参数
 fpeak = 30.0
-dt = 4e-6
-nt = 200000
+dt = 5e-6
+nt = 120000
 snapshot = 5000
 
 # 基准模型 VTI
@@ -45,12 +46,12 @@ C55_2 = rho_2 * vs_2**2
 C11_2 = C33_2 * (1 + 2 * epsilon_2)
 C13_2 = ((C33_2 - C55_2) * (2 * C33_2 * delta_2 + (C33_2 - C55_2)))**0.5 - C55_2
 
-omega0_ve = 2 * np.pi * fpeak
-Qp_ve = 400
-Qs_ve = 250
-inv_ts_ve = omega0_ve
-taup_ve = 2 / (Qp_ve - 1)
-taus_ve = 2 / (Qs_ve - 1)
+Qp_ve = 1000
+Qs_ve = 600
+sls_params = sls.get_sls_parameters(Qp_ve, Qs_ve, 3, 2, 50)
+inv_tss = 1 / sls_params["tau_sigmas"]
+taup = sls_params["taup"]
+taus = sls_params["taus"]
 
 # 第二层的空洞流体
 rho_fluid = 850
@@ -60,8 +61,8 @@ C11_fluid = rho_fluid * vp_fluid**2
 C55_fluid = rho_fluid * vs_fluid**2
 C13_fluid = C11_fluid - 2 * C55_fluid
 C33_fluid = C11_fluid
-Qp = 50
-zeta = C11_fluid / (2 * np.pi * fpeak * Qp)
+Qp_fluid = 50
+zeta = C11_fluid / (2 * np.pi * fpeak * Qp_fluid)
 
 # 第三层模型 VTI
 epsilon_3 = 0.05
@@ -80,7 +81,7 @@ fine_regions = [
     {
         "x_start": 200, "x_end": 300,
         "z_start": 350, "z_end": 500,
-        "N": 17
+        "N": 9
     }
 ]
 
@@ -113,21 +114,23 @@ os.makedirs(fine_dir, exist_ok=True)
 
 # ========== 生成粗网格模型 ==========
 coarse_MAT = np.full((nz, nx), SOLID, dtype=np.int32)
-coarse_rho = np.full((nz, nx), rho_1, dtype=np.float32)
-coarse_C11 = np.full((nz, nx), C11_1, dtype=np.float32)
-coarse_C13 = np.full((nz, nx), C13_1, dtype=np.float32)
-coarse_C33 = np.full((nz, nx), C33_1, dtype=np.float32)
-coarse_C55 = np.full((nz, nx), C55_1, dtype=np.float32)
+coarse_rho = np.full((nz, nx), rho_2, dtype=np.float32)
+coarse_C11 = np.full((nz, nx), C11_2, dtype=np.float32)
+coarse_C13 = np.full((nz, nx), C13_2, dtype=np.float32)
+coarse_C33 = np.full((nz, nx), C33_2, dtype=np.float32)
+coarse_C55 = np.full((nz, nx), C55_2, dtype=np.float32)
 coarse_zeta = np.full((nz, nx), 0, dtype=np.float32)
 coarse_taup = np.full((nz, nx), 0, dtype=np.float32)
 coarse_taus = np.full((nz, nx), 0, dtype=np.float32)
-coarse_inv_tsig = np.full((nz, nx), 0, dtype=np.float32)
+coarse_inv_tsig1 = np.full((nz, nx), 0, dtype=np.float32)
+coarse_inv_tsig2 = np.full((nz, nx), 0, dtype=np.float32)
+coarse_inv_tsig3 = np.full((nz, nx), 0, dtype=np.float32)
 
-coarse_rho[300:600, :] = rho_2
-coarse_C11[300:600, :] = C11_2
-coarse_C13[300:600, :] = C13_2
-coarse_C33[300:600, :] = C33_2
-coarse_C55[300:600, :] = C55_2
+# coarse_rho[300:550, :] = rho_2
+# coarse_C11[300:550, :] = C11_2
+# coarse_C13[300:550, :] = C13_2
+# coarse_C33[300:550, :] = C33_2
+# coarse_C55[300:550, :] = C55_2
 
 coarse_rho[600:, :] = rho_3
 coarse_C11[600:, :] = C11_3
@@ -217,23 +220,24 @@ for idx, region in enumerate(fine_regions):
     fine_C13 = np.full((lenz, lenx), C13_2, dtype=np.float32)
     fine_C33 = np.full((lenz, lenx), C33_2, dtype=np.float32)
     fine_C55 = np.full((lenz, lenx), C55_2, dtype=np.float32)
-    fine_taup = np.full((lenz, lenx), 2 / (Qp_ve - 1), dtype=np.float32)
-    fine_taus = np.full((lenz, lenx), 2 / (Qs_ve - 1), dtype=np.float32)
-    fine_inv_tsig = np.full((lenz, lenx), omega0_ve, dtype=np.float32)
+    fine_taup = np.full((lenz, lenx), taup, dtype=np.float32)
+    fine_taus = np.full((lenz, lenx), taus, dtype=np.float32)
+    fine_inv_tsig1 = np.full((lenz, lenx), inv_tss[0], dtype=np.float32)
+    fine_inv_tsig2 = np.full((lenz, lenx), inv_tss[1], dtype=np.float32)
+    fine_inv_tsig3 = np.full((lenz, lenx), inv_tss[2], dtype=np.float32)
     fine_zeta = np.full((lenz, lenx), 0, dtype=np.float32)
     fine_MAT = np.full((lenz, lenx), SOLID, dtype=np.int32)
 
-    target_Q = {"Qp": 50, "Qs": 30}
     fine_MAT[2:-2, 2:-2] = VESOLID
-    fine_C11[fine_MAT == VESOLID] = hudson_params['C11']
-    fine_C13[fine_MAT == VESOLID] = hudson_params['C13']
-    fine_C33[fine_MAT == VESOLID] = hudson_params['C33']
-    fine_C55[fine_MAT == VESOLID] = hudson_params['C55']
-    fine_taup[fine_MAT == VESOLID] = 2 / (Qp_ve - 1)
-    fine_taus[fine_MAT == VESOLID] = 2 / (Qs_ve - 1)
-    fine_taup[3:-3, 3:-3] = 2 / (target_Q["Qp"] - 1)
-    fine_taus[3:-3, 3:-3] = 2 / (target_Q["Qs"] - 1)
-    fine_inv_tsig[fine_MAT == VESOLID] = omega0_ve
+    # fine_C11[fine_MAT == VESOLID] = hudson_params['C11']
+    # fine_C13[fine_MAT == VESOLID] = hudson_params['C13']
+    # fine_C33[fine_MAT == VESOLID] = hudson_params['C33']
+    # fine_C55[fine_MAT == VESOLID] = hudson_params['C55']
+    fine_taup[fine_MAT == VESOLID] = taup
+    fine_taus[fine_MAT == VESOLID] = taus
+    fine_inv_tsig1[fine_MAT == VESOLID] = inv_tss[0]
+    fine_inv_tsig2[fine_MAT == VESOLID] = inv_tss[1]
+    fine_inv_tsig3[fine_MAT == VESOLID] = inv_tss[2]
 
     # 生成二值孔隙掩膜（1表示流体，0表示固体）
     porosity_mask = generate_porosity_mask(
@@ -243,14 +247,9 @@ for idx, region in enumerate(fine_regions):
         sigma=(sigma_y, sigma_x),  # 注意：sigma顺序为 (sigma_z, sigma_x)
         seed=seed + idx            # 每个区域不同种子，避免重复
     )
-    
-    smooth = 50
-    for i in range(1, smooth + 1):
-        fine_taup[2+i:-2-i, 2+i:-2-i] = 2 / (Qp_ve - i * (Qp_ve - target_Q["Qp"]) / smooth - 1)
-        fine_taus[2+i:-2-i, 2+i:-2-i] = 2 / (Qs_ve - i * (Qs_ve - target_Q["Qs"]) / smooth - 1)
 
     # 将流体区域标记为 FLUID
-    fine_MAT[porosity_mask == 1] = FLUID
+    # fine_MAT[porosity_mask == 1] = FLUID
     fine_C11[fine_MAT == FLUID] = C11_fluid
     fine_C13[fine_MAT == FLUID] = C13_fluid
     fine_C33[fine_MAT == FLUID] = C33_fluid
@@ -289,7 +288,9 @@ for idx, region in enumerate(fine_regions):
     fine_zeta.tofile(os.path.join(region_dir, "zeta.bin"))
     fine_taup.tofile(os.path.join(region_dir, "taup.bin"))
     fine_taus.tofile(os.path.join(region_dir, "taus.bin"))
-    fine_inv_tsig.tofile(os.path.join(region_dir, "inv_tsig.bin"))
+    fine_inv_tsig1.tofile(os.path.join(region_dir, "inv_tsig1.bin"))
+    fine_inv_tsig2.tofile(os.path.join(region_dir, "inv_tsig2.bin"))
+    fine_inv_tsig3.tofile(os.path.join(region_dir, "inv_tsig3.bin"))
 
     # 记录JSON信息
     fine_list.append({
@@ -306,7 +307,9 @@ for idx, region in enumerate(fine_regions):
         "zeta": f"models/fine/{idx}/zeta.bin",
         "taup": f"models/fine/{idx}/taup.bin",
         "taus": f"models/fine/{idx}/taus.bin",
-        "inv_tsig": f"models/fine/{idx}/inv_tsig.bin",
+        "inv_tsig1": f"models/fine/{idx}/inv_tsig1.bin",
+        "inv_tsig2": f"models/fine/{idx}/inv_tsig2.bin",
+        "inv_tsig3": f"models/fine/{idx}/inv_tsig3.bin",
         "material": f"models/fine/{idx}/material.bin"
     })
     
@@ -327,8 +330,10 @@ models_config = {
         "zeta": "models/coarse/zeta.bin",
         "taup": "models/coarse/taup.bin",
         "taus": "models/coarse/taus.bin",
+        "inv_tsig1": "models/coarse/inv_tsig1.bin",
+        "inv_tsig2": "models/coarse/inv_tsig2.bin",
+        "inv_tsig3": "models/coarse/inv_tsig3.bin",
         "material": "models/coarse/material.bin",
-        "inv_tsig": "models/coarse/inv_tsig.bin"
     },
     "fine": fine_list
 }
@@ -369,5 +374,7 @@ coarse_C33.tofile(os.path.join(coarse_dir, "C33.bin"))
 coarse_C55.tofile(os.path.join(coarse_dir, "C55.bin"))
 coarse_taup.tofile(os.path.join(coarse_dir, "taup.bin"))
 coarse_taus.tofile(os.path.join(coarse_dir, "taus.bin"))
-coarse_inv_tsig.tofile(os.path.join(coarse_dir, "inv_tsig.bin"))
+coarse_inv_tsig1.tofile(os.path.join(coarse_dir, "inv_tsig1.bin"))
+coarse_inv_tsig2.tofile(os.path.join(coarse_dir, "inv_tsig2.bin"))
+coarse_inv_tsig3.tofile(os.path.join(coarse_dir, "inv_tsig3.bin"))
 coarse_zeta.tofile(os.path.join(coarse_dir, "zeta.bin"))

@@ -197,28 +197,24 @@ __device__ float samp_C55_fine(float *f, int ix, int iz, int zone) {
     return 0.25 * sum;
 }
 
-
-__device__ float samp_taus_coarse(float *f, int ix, int iz) {
+__device__ float samp_sls_coarse(float *f, int ix, int iz) {
     float sum = 0;
-    int cnt = 0;
     int zone;
     int ix_fine;
     int iz_fine;
 
     zone = tex1Dfetch<int>(sig_mask, iz * nx + ix);
     if (zone == -1) {
-        if (MAT(iz * nx + ix) == VESOLID) {
+        if (MAT(iz * nx + ix) <= VESOLID) {
             sum += f[iz * nx + ix];
-            cnt++;
         } else {
             return 0;
         }
     } else {
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) == VESOLID) {
+        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) <= VESOLID) {
             sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
-            cnt++;
         } else {
             return 0;
         }
@@ -226,18 +222,16 @@ __device__ float samp_taus_coarse(float *f, int ix, int iz) {
 
     zone = tex1Dfetch<int>(sig_mask, (iz + 1) * nx + ix);
     if (zone == -1) {
-        if (MAT((iz + 1) * nx + ix) == VESOLID) {
+        if (MAT((iz + 1) * nx + ix) <= VESOLID) {
             sum += f[(iz + 1) * nx + ix];
-            cnt++;
         } else {
             return 0;
         }
     } else {
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
-        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) == VESOLID) {
+        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) <= VESOLID) {
             sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
-            cnt++;
         } else {
             return 0;
         }
@@ -245,18 +239,16 @@ __device__ float samp_taus_coarse(float *f, int ix, int iz) {
 
     zone = tex1Dfetch<int>(sig_mask, iz * nx + ix + 1);
     if (zone == -1) {
-        if (MAT(iz * nx + ix + 1) == VESOLID) {
+        if (MAT(iz * nx + ix + 1) <= VESOLID) {
             sum += f[iz * nx + ix + 1];
-            cnt++;
         } else {
             return 0;
         }
     } else {
         ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
-        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) == VESOLID) {
+        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) <= VESOLID) {
             sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
-            cnt++;
         } else {
             return 0;
         }
@@ -264,52 +256,45 @@ __device__ float samp_taus_coarse(float *f, int ix, int iz) {
 
     zone = tex1Dfetch<int>(sig_mask, (iz + 1) * nx + ix + 1);
     if (zone == -1) {
-        if (MAT((iz + 1) * nx + ix + 1) == VESOLID) {
+        if (MAT((iz + 1) * nx + ix + 1) <= VESOLID) {
             sum += f[(iz + 1) * nx + ix + 1];
-            cnt++;
         } else {
             return 0;
         }
     } else {
         ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
-        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) == VESOLID) {
+        if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) <= VESOLID) {
             sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
-            cnt++;
         } else {
             return 0;
         }
     }
-    return sum / cnt;
+    return sum * 0.25;
 }
-__device__ float samp_taus_fine(float *f, int ix, int iz, int zone) {
+__device__ float samp_sls_fine(float *f, int ix, int iz, int zone) {
     float sum = 0;
-    int cnt = 0;
-    if (MAT(IdxSigFi(ix, iz, zone, 0)) == VESOLID) {
+    if (MAT(IdxSigFi(ix, iz, zone, 0)) <= VESOLID) {
         sum += f[IdxSigFi(ix, iz, zone, 0)];
-        cnt++;
     } else {
         return 0;
     }
-    if (MAT(IdxSigFi(ix + 1, iz, zone, 0)) == VESOLID) {
+    if (MAT(IdxSigFi(ix + 1, iz, zone, 0)) <= VESOLID) {
         sum += f[IdxSigFi(ix + 1, iz, zone, 0)];
-        cnt++;
     } else {
         return 0;
     }
-    if (MAT(IdxSigFi(ix, iz + 1, zone, 0)) == VESOLID) {
+    if (MAT(IdxSigFi(ix, iz + 1, zone, 0)) <= VESOLID) {
         sum += f[IdxSigFi(ix, iz + 1, zone, 0)];
-        cnt++;
     } else {
         return 0;
     }
-    if (MAT(IdxSigFi(ix + 1, iz + 1, zone, 0)) == VESOLID) {
+    if (MAT(IdxSigFi(ix + 1, iz + 1, zone, 0)) <= VESOLID) {
         sum += f[IdxSigFi(ix + 1, iz + 1, zone, 0)];
-        cnt++;
     } else {
         return 0;
     }
-    return sum / cnt;
+    return sum * 0.25;
 }
 
 // vx 沿 z 方向插值（x 固定，z 变化）

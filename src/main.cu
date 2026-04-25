@@ -15,7 +15,9 @@ class StreamManager {
 public:
     cudaStream_t stream_vx, stream_vz;
     cudaStream_t stream_sx, stream_sz, stream_txz, stream_p;
-    cudaStream_t stream_rx, stream_rz, stream_rxz;
+    cudaStream_t stream_rx1, stream_rz1, stream_rxz1;
+    cudaStream_t stream_rx2, stream_rz2, stream_rxz2;
+    cudaStream_t stream_rx3, stream_rz3, stream_rxz3;
     StreamManager() {
         cudaStreamCreate(&stream_vx);
         cudaStreamCreate(&stream_vz);
@@ -23,9 +25,15 @@ public:
         cudaStreamCreate(&stream_sz);
         cudaStreamCreate(&stream_txz);
         cudaStreamCreate(&stream_p);
-        cudaStreamCreate(&stream_rx);
-        cudaStreamCreate(&stream_rz);
-        cudaStreamCreate(&stream_rxz);
+        cudaStreamCreate(&stream_rx1);
+        cudaStreamCreate(&stream_rz1);
+        cudaStreamCreate(&stream_rxz1);
+        cudaStreamCreate(&stream_rx2);
+        cudaStreamCreate(&stream_rz2);
+        cudaStreamCreate(&stream_rxz2);
+        cudaStreamCreate(&stream_rx3);
+        cudaStreamCreate(&stream_rz3);
+        cudaStreamCreate(&stream_rxz3);
     }
     ~StreamManager() {
         cudaStreamDestroy(stream_vx);
@@ -33,9 +41,15 @@ public:
         cudaStreamDestroy(stream_sx);
         cudaStreamDestroy(stream_sz);
         cudaStreamDestroy(stream_p);
-        cudaStreamDestroy(stream_rx);
-        cudaStreamDestroy(stream_rz);
-        cudaStreamDestroy(stream_rxz);
+        cudaStreamDestroy(stream_rx1);
+        cudaStreamDestroy(stream_rz1);
+        cudaStreamDestroy(stream_rxz1);
+        cudaStreamDestroy(stream_rx2);
+        cudaStreamDestroy(stream_rz2);
+        cudaStreamDestroy(stream_rxz2);
+        cudaStreamDestroy(stream_rx3);
+        cudaStreamDestroy(stream_rz3);
+        cudaStreamDestroy(stream_rxz3);
     }
 };
 
@@ -151,9 +165,15 @@ void smooth_fine(GridManager &gm, StreamManager &sm, int time) {
         smooth_fine_sig<<<grid_fi, block, 0, sm.stream_sx>>>(gm.core_d.sx, gm.core_temp.sx, i, time, 3);
         smooth_fine_sig<<<grid_fi, block, 0, sm.stream_sz>>>(gm.core_d.sz, gm.core_temp.sz, i, time, 3);
         smooth_fine_p<<<grid_fi, block, 0, sm.stream_p>>>(gm.core_d.p, gm.core_temp.p, i, time, 3);
-        smooth_fine_rx<<<grid_fi, block, 0, sm.stream_rx>>>(gm.core_d.rx, gm.core_temp.rx, i, time, 3);
-        smooth_fine_rz<<<grid_fi, block, 0, sm.stream_rz>>>(gm.core_d.rz, gm.core_temp.rz, i, time, 3);
-        smooth_fine_rxz<<<grid_fi, block, 0, sm.stream_rxz>>>(gm.core_d.rxz, gm.core_temp.rxz, i, time, 3);
+        smooth_fine_rx<<<grid_fi, block, 0, sm.stream_rx1>>>(gm.core_d.rx1, gm.core_temp.rx1, i, time, 3);
+        smooth_fine_rz<<<grid_fi, block, 0, sm.stream_rz1>>>(gm.core_d.rz1, gm.core_temp.rz1, i, time, 3);
+        smooth_fine_rxz<<<grid_fi, block, 0, sm.stream_rxz1>>>(gm.core_d.rxz1, gm.core_temp.rxz1, i, time, 3);
+        smooth_fine_rx<<<grid_fi, block, 0, sm.stream_rx2>>>(gm.core_d.rx2, gm.core_temp.rx2, i, time, 3);
+        smooth_fine_rz<<<grid_fi, block, 0, sm.stream_rz2>>>(gm.core_d.rz2, gm.core_temp.rz2, i, time, 3);
+        smooth_fine_rxz<<<grid_fi, block, 0, sm.stream_rxz2>>>(gm.core_d.rxz2, gm.core_temp.rxz2, i, time, 3);
+        smooth_fine_rx<<<grid_fi, block, 0, sm.stream_rx3>>>(gm.core_d.rx3, gm.core_temp.rx3, i, time, 3);
+        smooth_fine_rz<<<grid_fi, block, 0, sm.stream_rz3>>>(gm.core_d.rz3, gm.core_temp.rz3, i, time, 3);
+        smooth_fine_rxz<<<grid_fi, block, 0, sm.stream_rxz3>>>(gm.core_d.rxz3, gm.core_temp.rxz3, i, time, 3);
     }
 
     int bytes_vx = (gm.offset_time_vx - gm.offset_coarse_vx) * sizeof(float);
@@ -166,18 +186,30 @@ void smooth_fine(GridManager &gm, StreamManager &sm, int time) {
     cudaMemcpyAsync(gm.core_d.sz + time * bytes_sig + gm.offset_coarse_sig, gm.core_temp.sz, bytes_sig, cudaMemcpyDeviceToDevice, sm.stream_sz);
     cudaMemcpyAsync(gm.core_d.txz + time * bytes_txz + gm.offset_coarse_txz, gm.core_temp.txz, bytes_txz, cudaMemcpyDeviceToDevice, sm.stream_txz);
     cudaMemcpyAsync(gm.core_d.p + time * bytes_sig + gm.offset_coarse_sig, gm.core_temp.p, bytes_sig, cudaMemcpyDeviceToDevice, sm.stream_p);
-    cudaMemcpyAsync(gm.core_d.rx + time * bytes_sig + gm.offset_coarse_sig, gm.core_temp.rx, bytes_sig, cudaMemcpyDeviceToDevice, sm.stream_rx);
-    cudaMemcpyAsync(gm.core_d.rz + time * bytes_sig + gm.offset_coarse_sig, gm.core_temp.rz, bytes_sig, cudaMemcpyDeviceToDevice, sm.stream_rz);
-    cudaMemcpyAsync(gm.core_d.rxz + time * bytes_txz + gm.offset_coarse_txz, gm.core_temp.rxz, bytes_txz, cudaMemcpyDeviceToDevice, sm.stream_rxz);
+    cudaMemcpyAsync(gm.core_d.rx1 + time * bytes_sig + gm.offset_coarse_sig, gm.core_temp.rx1, bytes_sig, cudaMemcpyDeviceToDevice, sm.stream_rx1);
+    cudaMemcpyAsync(gm.core_d.rz1 + time * bytes_sig + gm.offset_coarse_sig, gm.core_temp.rz1, bytes_sig, cudaMemcpyDeviceToDevice, sm.stream_rz1);
+    cudaMemcpyAsync(gm.core_d.rxz1 + time * bytes_txz + gm.offset_coarse_txz, gm.core_temp.rxz1, bytes_txz, cudaMemcpyDeviceToDevice, sm.stream_rxz1);
+    cudaMemcpyAsync(gm.core_d.rx2 + time * bytes_sig + gm.offset_coarse_sig, gm.core_temp.rx2, bytes_sig, cudaMemcpyDeviceToDevice, sm.stream_rx2);
+    cudaMemcpyAsync(gm.core_d.rz2 + time * bytes_sig + gm.offset_coarse_sig, gm.core_temp.rz2, bytes_sig, cudaMemcpyDeviceToDevice, sm.stream_rz2);
+    cudaMemcpyAsync(gm.core_d.rxz2 + time * bytes_txz + gm.offset_coarse_txz, gm.core_temp.rxz2, bytes_txz, cudaMemcpyDeviceToDevice, sm.stream_rxz2);
+    cudaMemcpyAsync(gm.core_d.rx3 + time * bytes_sig + gm.offset_coarse_sig, gm.core_temp.rx3, bytes_sig, cudaMemcpyDeviceToDevice, sm.stream_rx3);
+    cudaMemcpyAsync(gm.core_d.rz3 + time * bytes_sig + gm.offset_coarse_sig, gm.core_temp.rz3, bytes_sig, cudaMemcpyDeviceToDevice, sm.stream_rz3);
+    cudaMemcpyAsync(gm.core_d.rxz3 + time * bytes_txz + gm.offset_coarse_txz, gm.core_temp.rxz3, bytes_txz, cudaMemcpyDeviceToDevice, sm.stream_rxz3);
     cudaStreamSynchronize(sm.stream_vx);
     cudaStreamSynchronize(sm.stream_vz);
     cudaStreamSynchronize(sm.stream_sx);
     cudaStreamSynchronize(sm.stream_sz);
     cudaStreamSynchronize(sm.stream_txz);
     cudaStreamSynchronize(sm.stream_p);
-    cudaStreamSynchronize(sm.stream_rx);
-    cudaStreamSynchronize(sm.stream_rz);
-    cudaStreamSynchronize(sm.stream_rxz);
+    cudaStreamSynchronize(sm.stream_rx1);
+    cudaStreamSynchronize(sm.stream_rz1);
+    cudaStreamSynchronize(sm.stream_rxz1);
+    cudaStreamSynchronize(sm.stream_rx2);
+    cudaStreamSynchronize(sm.stream_rz2);
+    cudaStreamSynchronize(sm.stream_rxz2);
+    cudaStreamSynchronize(sm.stream_rx3);
+    cudaStreamSynchronize(sm.stream_rz3);
+    cudaStreamSynchronize(sm.stream_rxz3);
 }
 
 void output_snapshots(GridManager &gm, int it, float dt, int time) {

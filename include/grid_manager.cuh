@@ -31,9 +31,16 @@ struct Core {
     float *sx = nullptr;
     float *sz = nullptr;
     float *txz = nullptr;
-    float *rx = nullptr;
-    float *rz = nullptr;
-    float *rxz = nullptr;
+
+    float *rx1 = nullptr;
+    float *rz1 = nullptr;
+    float *rxz1 = nullptr;
+    float *rx2 = nullptr;
+    float *rz2 = nullptr;
+    float *rxz2 = nullptr;
+    float *rx3 = nullptr;
+    float *rz3 = nullptr;
+    float *rxz3 = nullptr;
 
     float *p = nullptr;
 };
@@ -47,7 +54,10 @@ struct Model {
     float *zeta = nullptr;
     float *taup = nullptr;
     float *taus = nullptr;
-    float *inv_tsig = nullptr;
+    float *inv_tsig1 = nullptr;
+    float *inv_tsig2 = nullptr;
+    float *inv_tsig3 = nullptr;
+
     MAT_FLAG *mat = nullptr;
 };
 

@@ -13,15 +13,14 @@ __device__ int IdxVzFi(int ix, int iz, int zone, int time);
 __device__ int IdxSigFi(int ix, int iz, int zone, int time);
 __device__ int IdxTxzFi(int ix, int iz, int zone, int time);
 
-
 __device__ float samp_C55_coarse(float *f, int ix, int iz);
 __device__ float samp_C55_fine(float *f, int ix, int iz, int zone);
 __device__ float samp_rho_x_coarse(float *f, int ix, int iz);
 __device__ float samp_rho_z_coarse(float *f, int ix, int iz);
 __device__ float samp_rho_x_fine(float *f, int ix, int iz, int zone);
 __device__ float samp_rho_z_fine(float *f, int ix, int iz, int zone);
-__device__ float samp_taus_coarse(float *f, int ix, int iz);
-__device__ float samp_taus_fine(float *f, int ix, int iz, int zone);
+__device__ float samp_sls_coarse(float *f, int ix, int iz);
+__device__ float samp_sls_fine(float *f, int ix, int iz, int zone);
 
 
 __device__ float samp_vx_z(
