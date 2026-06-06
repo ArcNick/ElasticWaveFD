@@ -1,6 +1,6 @@
 import numpy as np
 # Blanch et al. 1995 tau method
-QFIXFACTOR = 0.96
+QFIXFACTOR = 0.97
 
 def getI0(tau_sig: float, f1: float, f2: float) -> float:
     omega1 = 2 * np.pi * f1
@@ -46,11 +46,7 @@ def compute_tau(Q_target: float, tau_sigmas: np.ndarray, f_min: float, f_max: fl
     tau = (1.0 / Q_input) * (sum_I0 / (sum_I1 + 2.0 * sum_I2))
     return tau
 
-# ==================== LIU Xue-feng, FAN You-hua, CHANG Dong-mei 2017 ====================
 def generate_tau_sigmas(L: int, f_min: float, f_max: float) -> np.ndarray:
-    """
-    1/tau_sigma 的对数均匀分布在 [f_min/2, 2*f_max]
-    """
     if L == 3:
         f_start = f_min
         f_end = f_max

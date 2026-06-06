@@ -195,6 +195,28 @@ void GridManager::memcpy_model_h2d() {
     cudaMemcpy(model_d.mat, model_h.mat, bytes_mat, cudaMemcpyHostToDevice);
 }
 
+void GridManager::memset_0() {
+    int bytes_vx = offset_time_vx * sizeof(float) * 2;
+    int bytes_vz = offset_time_vz * sizeof(float) * 2;
+    int bytes_sig = offset_time_sig * sizeof(float) * 2;
+    int bytes_txz = offset_time_txz * sizeof(float) * 2;
+    cudaMemset(core_d.vx, 0, bytes_vx);
+    cudaMemset(core_d.vz, 0, bytes_vz);
+    cudaMemset(core_d.sx, 0, bytes_sig);
+    cudaMemset(core_d.sz, 0, bytes_sig);
+    cudaMemset(core_d.txz, 0, bytes_txz);
+    cudaMemset(core_d.p, 0, bytes_sig);
+    cudaMemset(core_d.rx1, 0, bytes_sig);
+    cudaMemset(core_d.rz1, 0, bytes_sig);
+    cudaMemset(core_d.rxz1, 0, bytes_txz);
+    cudaMemset(core_d.rx2, 0, bytes_sig);
+    cudaMemset(core_d.rz2, 0, bytes_sig);
+    cudaMemset(core_d.rxz2, 0, bytes_txz);
+    cudaMemset(core_d.rx3, 0, bytes_sig);
+    cudaMemset(core_d.rz3, 0, bytes_sig);
+    cudaMemset(core_d.rxz3, 0, bytes_txz);
+}
+
 void GridManager::build_texture() {
     int *vx_mask_h = new int[(nx_coarse - 1) * nz_coarse]();
     int *vz_mask_h = new int[nx_coarse * (nz_coarse - 1)]();

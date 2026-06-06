@@ -7,8 +7,6 @@
 __constant__ float freq;
 __constant__ float dt_d;
 __constant__ int nt_d;
-__constant__ int posx_d;
-__constant__ int posz_d;
 
 Params::Params(const std::string &file) {
     read(file);
@@ -27,7 +25,12 @@ void Params::read(const std::string &file) {
     fpeak = cJSON_GetObjectItem(base, "fpeak")->valuedouble;
     dt = cJSON_GetObjectItem(base, "dt")->valuedouble;
     nt = cJSON_GetObjectItem(base, "nt")->valueint;
-    posx = cJSON_GetObjectItem(base, "posx")->valueint;
+    cJSON *posx_ptr = cJSON_GetObjectItem(base, "posx");
+    int posx_size = cJSON_GetArraySize(posx_ptr);
+    for (int i = 0; i < posx_size; i++) {
+        posx.push_back(cJSON_GetArrayItem(posx_ptr, i)->valueint);
+    }
+
     posz = cJSON_GetObjectItem(base, "posz")->valueint;
     snapshot = cJSON_GetObjectItem(base, "snapshot")->valueint;
 
@@ -39,8 +42,6 @@ void Params::build_constant() {
     cudaMemcpyToSymbol(freq, &fpeak, sizeof(float), 0, cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(dt_d, &dt, sizeof(float), 0, cudaMemcpyHostToDevice);
     cudaMemcpyToSymbol(nt_d, &nt, sizeof(int), 0, cudaMemcpyHostToDevice);
-    cudaMemcpyToSymbol(posx_d, &posx, sizeof(int), 0, cudaMemcpyHostToDevice);
-    cudaMemcpyToSymbol(posz_d, &posz, sizeof(int), 0, cudaMemcpyHostToDevice);
 }
 
 std::unique_ptr<float[]> Params::ricker_wavelet() {

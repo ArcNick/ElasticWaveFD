@@ -27,6 +27,19 @@ Cpml::~Cpml() {
     mem_release();
 }
 
+void Cpml::memset_0(int lx, int lz) {
+    cudaMemset(psi_vel.psi_vx_x, 0, (lx - 1) * lz * sizeof(float));
+    cudaMemset(psi_vel.psi_vx_z, 0, (lx - 1) * lz * sizeof(float));
+    cudaMemset(psi_vel.psi_vz_x, 0, lx * (lz - 1) * sizeof(float));
+    cudaMemset(psi_vel.psi_vz_z, 0, lx * (lz - 1) * sizeof(float));
+    cudaMemset(psi_str.psi_sx_x, 0, lx * lz * sizeof(float));
+    cudaMemset(psi_str.psi_sx_z, 0, lx * lz * sizeof(float));
+    cudaMemset(psi_str.psi_sz_x, 0, lx * lz * sizeof(float));
+    cudaMemset(psi_str.psi_sz_z, 0, lx * lz * sizeof(float));
+    cudaMemset(psi_str.psi_txz_x, 0, (lx - 1) * (lz - 1) * sizeof(float));
+    cudaMemset(psi_str.psi_txz_z, 0, (lx - 1) * (lz - 1) * sizeof(float));
+}
+
 void Cpml::load(const std::string &file) {
     const std::string json_content = readJsonFile(file);
     cJSON *root = cJSON_Parse(json_content.c_str());

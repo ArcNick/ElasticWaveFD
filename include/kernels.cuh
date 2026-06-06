@@ -16,15 +16,15 @@ __device__ int get_cpml_idx_z_int(int iz);
 __device__ int get_cpml_idx_x_half(int ix);
 __device__ int get_cpml_idx_z_half(int iz);
 
-__global__ void apply_source(Core core, float src, int cur);
+__global__ void apply_source(Core core, int posx, int posz,float src, int cur);
 __global__ void update_sigma_coarse(Core core, Model model, PsiVel psi_vel, int cur, int it);
 __global__ void update_tau_coarse(Core core, Model model, PsiVel psi_vel, int cur, int it);
 __global__ void update_velocity_coarse(Core core, Model model, PsiStr psi_str, int cur, int it);
 __global__ void update_sigma_fine(Core core, Model model, int zone, int cur);
 __global__ void update_tau_fine(Core core, Model model, int zone, int cur);
 __global__ void update_velocity_fine(Core core, Model model, int zone, int cur);
-__global__ void apply_fluid_boundary_coarse(Core core, int cur);
-__global__ void apply_fluid_boundary_fine(Core core, int zone, int cur);
+// __global__ void apply_fluid_boundary_coarse(Core core, int cur);
+// __global__ void apply_fluid_boundary_fine(Core core, int zone, int cur);
 
 __global__ void smooth_fine_vx(float *vx, float *temp, int zone, int cur, int lvl);
 __global__ void smooth_fine_vz(float *vz, float *temp, int zone, int cur, int lvl);

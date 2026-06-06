@@ -5,11 +5,11 @@ extern __constant__ int posx_d, posz_d;
 extern __constant__ float dt_d;
 
 __constant__ float coeff[5][3] = {
-    {0, 0, 0},
-    {0.9, 0.02, 0.005},
-    {0.8, 0.04, 0.010},
-    {0.5, 0.1, 0.025},
-    {0.25, 0.125, 1 / 16.0}
+    {0.5, 0.1, 0.025},      // 0
+    {0.4, 0.1, 0.05},       // 5
+    {0.35, 0.1, 0.0625},    // 10
+    {0.3, 0.1, 0.075},      // 15
+    {0.28, 0.11, 0.07}      // 20
 };
 
 __device__ int get_cpml_idx_x_int(int ix) {
@@ -52,9 +52,9 @@ __device__ int get_cpml_idx_z_half(int iz) {
     }
 }
 
-__global__ void apply_source(Core core, float src, int cur) {
-    core.sx[posz_d * nx + posx_d + cur * offset_sig_all] += src * dt_d;
-    core.sz[posz_d * nx + posx_d + cur * offset_sig_all] += src * dt_d;
+__global__ void apply_source(Core core, int posx, int posz, float src, int cur) {
+    core.sx[posz * nx + posx + cur * offset_sig_all] += src * dt_d;
+    core.sz[posz * nx + posx + cur * offset_sig_all] += src * dt_d;
 }
 
 __global__ void update_sigma_coarse(Core core, Model model, PsiVel psi_vel, int cur, int it) {
@@ -120,7 +120,7 @@ __global__ void update_sigma_coarse(Core core, Model model, PsiVel psi_vel, int 
             }
             
             core.p[IdxSigCo(ix, iz, cur)] = core.p[IdxSigCo(ix, iz, cur ^ 1)] + dt_d * (
-                + model.C11[IdxSigCo(ix, iz, 0)] * (dvx_dx + dvz_dz)
+                - model.C11[IdxSigCo(ix, iz, 0)] * (dvx_dx + dvz_dz)
             );
             core.sx[IdxSigCo(ix, iz, cur)] = -core.p[IdxSigCo(ix, iz, cur)] + (
                 model.zeta[IdxSigCo(ix, iz, 0)] * (dvx_dx + dvz_dz)

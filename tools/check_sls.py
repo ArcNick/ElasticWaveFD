@@ -14,8 +14,8 @@ def plot_combined():
         {'Q': 50,  'L': 3, 'ylim': (25,  75),  'color': 'g'},
         {'Q': 20,  'L': 3, 'ylim': (10,  30),  'color': 'r'}
     ]
-    f_min, f_max = 2, 50
-    f = np.linspace(f_min, f_max * 2, 200)
+    f_min, f_max = 1, 100
+    f = np.linspace(f_min, f_max, 200)
     omega = 2 * np.pi * f
 
     fig, axes = plt.subplots(1, 3, figsize=(15, 5))
@@ -35,6 +35,15 @@ def plot_combined():
         ax.legend()
         ax.grid(alpha=0.3)
         ax.set_ylim(case['ylim'])
+        ax.text(
+            0.5,
+            -0.18,
+            f'({chr(97 + i)})',
+            transform=ax.transAxes,
+            ha='center',
+            va='top',
+            fontsize=13
+)
     
     plt.tight_layout()
     plt.show()

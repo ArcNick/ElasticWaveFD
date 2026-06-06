@@ -3,6 +3,7 @@ import json
 import numpy as np
 import matplotlib.pyplot as plt
 import hudson as hd
+import schoenberg as sch
 import fault as ft
 import sls
 from scipy.ndimage import gaussian_filter
@@ -19,9 +20,9 @@ dz = 1.5
 
 # 时间参数
 fpeak = 30.0
-dt = 5e-6
-nt = 120000
-snapshot = 5000
+dt = 1e-5
+nt = 100000
+snapshot = 2000
 
 # 基准模型 VTI
 epsilon_1 = 0.08
@@ -46,8 +47,8 @@ C55_2 = rho_2 * vs_2**2
 C11_2 = C33_2 * (1 + 2 * epsilon_2)
 C13_2 = ((C33_2 - C55_2) * (2 * C33_2 * delta_2 + (C33_2 - C55_2)))**0.5 - C55_2
 
-Qp_ve = 1000
-Qs_ve = 600
+Qp_ve = 60
+Qs_ve = 40
 sls_params = sls.get_sls_parameters(Qp_ve, Qs_ve, 3, 2, 50)
 inv_tss = 1 / sls_params["tau_sigmas"]
 taup = sls_params["taup"]
@@ -55,13 +56,13 @@ taus = sls_params["taus"]
 
 # 第二层的空洞流体
 rho_fluid = 850
-vp_fluid = 1300
+vp_fluid = 1100
 vs_fluid = 0
 C11_fluid = rho_fluid * vp_fluid**2
 C55_fluid = rho_fluid * vs_fluid**2
 C13_fluid = C11_fluid - 2 * C55_fluid
 C33_fluid = C11_fluid
-Qp_fluid = 50
+Qp_fluid = 10
 zeta = C11_fluid / (2 * np.pi * fpeak * Qp_fluid)
 
 # 第三层模型 VTI
@@ -81,7 +82,7 @@ fine_regions = [
     {
         "x_start": 200, "x_end": 300,
         "z_start": 350, "z_end": 500,
-        "N": 9
+        "N": 3
     }
 ]
 
@@ -126,17 +127,17 @@ coarse_inv_tsig1 = np.full((nz, nx), 0, dtype=np.float32)
 coarse_inv_tsig2 = np.full((nz, nx), 0, dtype=np.float32)
 coarse_inv_tsig3 = np.full((nz, nx), 0, dtype=np.float32)
 
-# coarse_rho[300:550, :] = rho_2
-# coarse_C11[300:550, :] = C11_2
-# coarse_C13[300:550, :] = C13_2
-# coarse_C33[300:550, :] = C33_2
-# coarse_C55[300:550, :] = C55_2
+coarse_rho[300:550, :] = rho_2
+coarse_C11[300:550, :] = C11_2
+coarse_C13[300:550, :] = C13_2
+coarse_C33[300:550, :] = C33_2
+coarse_C55[300:550, :] = C55_2
 
-coarse_rho[600:, :] = rho_3
-coarse_C11[600:, :] = C11_3
-coarse_C13[600:, :] = C13_3
-coarse_C33[600:, :] = C33_3
-coarse_C55[600:, :] = C55_3
+coarse_rho[550:, :] = rho_3
+coarse_C11[550:, :] = C11_3
+coarse_C13[550:, :] = C13_3
+coarse_C33[550:, :] = C33_3
+coarse_C55[550:, :] = C55_3
 
 # ft.add_fault(rho=coarse_rho, C11=coarse_C11, C13=coarse_C13, C33=coarse_C33, C55=coarse_C55,
 #              nx=nx, nz=nz, fault_start=(250, 180), fault_end=(310, 400),
@@ -228,7 +229,7 @@ for idx, region in enumerate(fine_regions):
     fine_zeta = np.full((lenz, lenx), 0, dtype=np.float32)
     fine_MAT = np.full((lenz, lenx), SOLID, dtype=np.int32)
 
-    fine_MAT[2:-2, 2:-2] = VESOLID
+    # fine_MAT[2:-2, 2:-2] = VESOLID
     # fine_C11[fine_MAT == VESOLID] = hudson_params['C11']
     # fine_C13[fine_MAT == VESOLID] = hudson_params['C13']
     # fine_C33[fine_MAT == VESOLID] = hudson_params['C33']
@@ -239,6 +240,17 @@ for idx, region in enumerate(fine_regions):
     fine_inv_tsig2[fine_MAT == VESOLID] = inv_tss[1]
     fine_inv_tsig3[fine_MAT == VESOLID] = inv_tss[2]
 
+    fine_MAT[4:-4, 4:-4] = FLUID
+    # fine_C11[fine_MAT == VESOLID] = hudson_params['C11']
+    # fine_C13[fine_MAT == VESOLID] = hudson_params['C13']
+    # fine_C33[fine_MAT == VESOLID] = hudson_params['C33']
+    # fine_C55[fine_MAT == VESOLID] = hudson_params['C55']
+    fine_rho[fine_MAT == FLUID] = rho_fluid
+    fine_C11[fine_MAT == FLUID] = C11_fluid
+    fine_C13[fine_MAT == FLUID] = C13_fluid
+    fine_C33[fine_MAT == FLUID] = C33_fluid
+    fine_C55[fine_MAT == FLUID] = C55_fluid
+    fine_zeta[fine_MAT == FLUID] = zeta
     # 生成二值孔隙掩膜（1表示流体，0表示固体）
     porosity_mask = generate_porosity_mask(
         shape=(lenz, lenx),

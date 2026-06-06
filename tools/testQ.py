@@ -20,12 +20,12 @@ dz = 2
 # 时间参数
 fpeak = 30.0
 dt = 5e-5
-nt = 50000
-snapshot = 400
+nt = 20000
+snapshot = 1000
 
-Qp_ve = 200
-Qs_ve = 120
-sls_params = sls.get_sls_parameters(Qp_ve, Qs_ve, 3, 2, 50)
+Qp_ve = 20
+Qs_ve = 12
+sls_params = sls.get_sls_parameters(Qp_ve, Qs_ve, 3, 1, 100)
 inv_tss = 1 / sls_params["tau_sigmas"]
 taup = sls_params["taup"]
 taus = sls_params["taus"]

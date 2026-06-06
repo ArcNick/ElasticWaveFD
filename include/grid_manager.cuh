@@ -106,6 +106,7 @@ public:
 
     void memcpy_model_h2d();
     void memcpy_core_d2h(int time);
+    void memset_0();
 
     // 用于保存 n 数组纹理对象
     cudaTextureObject_t tex_vx_n;

@@ -51,8 +51,8 @@ __device__ float samp_rho_x_coarse(float *f, int ix, int iz) {
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
         val2 = f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
     }
-    
-    return 2 / (1 / val1 + 1 / val2);
+
+    return 0.5 * (val1 + val2);
 }
 
 __device__ float samp_rho_z_coarse(float *f, int ix, int iz) {
@@ -78,20 +78,20 @@ __device__ float samp_rho_z_coarse(float *f, int ix, int iz) {
         iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
         val2 = f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
     }
-    
-    return 2 / (1 / val1 + 1 / val2);
+
+    return 0.5 * (val1 + val2);
 }
 
 __device__ float samp_rho_x_fine(float *f, int ix, int iz, int zone) {
     float val1 = f[IdxSigFi(ix, iz, zone, 0)];
     float val2 = f[IdxSigFi(ix + 1, iz, zone, 0)];
-    return 2 / (1 / val1 + 1 / val2);
+    return 0.5 * (val1 + val2);
 }
 
 __device__ float samp_rho_z_fine(float *f, int ix, int iz, int zone) {
     float val1 = f[IdxSigFi(ix, iz, zone, 0)];
     float val2 = f[IdxSigFi(ix, iz + 1, zone, 0)];
-    return 2 / (1 / val1 + 1 / val2);
+    return 0.5 * (val1 + val2);
 }
 
 __device__ float samp_C55_coarse(
@@ -105,7 +105,7 @@ __device__ float samp_C55_coarse(
     zone = tex1Dfetch<int>(sig_mask, iz * nx + ix);
     if (zone == -1) {
         if (MAT(iz * nx + ix) <= VESOLID) {
-            sum += f[iz * nx + ix];
+            sum += 1 / f[iz * nx + ix];
         } else {
             return 0;
         }
@@ -113,7 +113,7 @@ __device__ float samp_C55_coarse(
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
         if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) <= VESOLID) {
-            sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
+            sum += 1 / f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
         } else {
             return 0;
         }
@@ -122,7 +122,7 @@ __device__ float samp_C55_coarse(
     zone = tex1Dfetch<int>(sig_mask, (iz + 1) * nx + ix);
     if (zone == -1) {
         if (MAT((iz + 1) * nx + ix) <= VESOLID) {
-            sum += f[(iz + 1) * nx + ix];
+            sum += 1 / f[(iz + 1) * nx + ix];
         } else {
             return 0;
         }
@@ -130,7 +130,7 @@ __device__ float samp_C55_coarse(
         ix_fine = (ix - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
         if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) <= VESOLID) {
-            sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
+            sum += 1 / f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
         } else {
             return 0;
         }
@@ -139,7 +139,7 @@ __device__ float samp_C55_coarse(
     zone = tex1Dfetch<int>(sig_mask, iz * nx + ix + 1);
     if (zone == -1) {
         if (MAT(iz * nx + ix + 1) <= VESOLID) {
-            sum += f[iz * nx + ix + 1];
+            sum += 1 / f[iz * nx + ix + 1];
         } else {
             return 0;
         }
@@ -147,7 +147,7 @@ __device__ float samp_C55_coarse(
         ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz - fines[zone].z_start) * fines[zone].N;
         if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) <= VESOLID) {
-            sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
+            sum += 1 / f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
         } else {
             return 0;
         }
@@ -156,7 +156,7 @@ __device__ float samp_C55_coarse(
     zone = tex1Dfetch<int>(sig_mask, (iz + 1) * nx + ix + 1);
     if (zone == -1) {
         if (MAT((iz + 1) * nx + ix + 1) <= VESOLID) {
-            sum += f[(iz + 1) * nx + ix + 1];
+            sum += 1 / f[(iz + 1) * nx + ix + 1];
         } else {
             return 0;
         }
@@ -164,37 +164,37 @@ __device__ float samp_C55_coarse(
         ix_fine = (ix + 1 - fines[zone].x_start) * fines[zone].N;
         iz_fine = (iz + 1 - fines[zone].z_start) * fines[zone].N;
         if (MAT(IdxSigFi(ix_fine, iz_fine, zone, 0)) <= VESOLID) {
-            sum += f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
+            sum += 1 / f[IdxSigFi(ix_fine, iz_fine, zone, 0)];
         } else {
             return 0;
         }
     }
-    return 0.25 * sum;
+    return 4 / sum;
 }
 
 __device__ float samp_C55_fine(float *f, int ix, int iz, int zone) {
     float sum = 0;
     if (MAT(IdxSigFi(ix, iz, zone, 0)) <= VESOLID) {
-        sum += f[IdxSigFi(ix, iz, zone, 0)];
+        sum += 1 / f[IdxSigFi(ix, iz, zone, 0)];
     } else {
         return 0;
     }
     if (MAT(IdxSigFi(ix + 1, iz, zone, 0)) <= VESOLID) {
-        sum += f[IdxSigFi(ix + 1, iz, zone, 0)];
+        sum += 1 / f[IdxSigFi(ix + 1, iz, zone, 0)];
     } else {
         return 0;
     }
     if (MAT(IdxSigFi(ix, iz + 1, zone, 0)) <= VESOLID) {
-        sum += f[IdxSigFi(ix, iz + 1, zone, 0)];
+        sum += 1 / f[IdxSigFi(ix, iz + 1, zone, 0)];
     } else {
         return 0;
     }
     if (MAT(IdxSigFi(ix + 1, iz + 1, zone, 0)) <= VESOLID) {
-        sum += f[IdxSigFi(ix + 1, iz + 1, zone, 0)];
+        sum += 1 / f[IdxSigFi(ix + 1, iz + 1, zone, 0)];
     } else {
         return 0;
     }
-    return 0.25 * sum;
+    return 4 / sum;
 }
 
 __device__ float samp_sls_coarse(float *f, int ix, int iz) {
@@ -995,7 +995,7 @@ __device__ float dsx_dx_8th(
             sum -= d[fines[zone].N][n_x][i] * f[sum_offset_fine_sig[zone] + iz * lenx + ix_local];
         } else {
             sum -= d[fines[zone].N][n_x][i] * samp_sx_z(f, ix_global, iz_global);
-        }   
+        }
     }
     return sum / fines[zone].dx_fine;
 }
@@ -1124,7 +1124,7 @@ __device__ float dtxz_dz_8th(
         ix_global = (ix + 0.5) / fines[zone].N + fines[zone].x_start;
         iz_global = (
             + 1.0 * iz / fines[zone].N + fines[zone].z_start
-            + n_z / fines[zone].N + (i - n_z - 0.5)
+            + 1.0 * n_z / fines[zone].N + (i - n_z - 0.5)
         );
         if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             iz_local = (
@@ -1137,8 +1137,8 @@ __device__ float dtxz_dz_8th(
 
         // samp2
         iz_global = (
-            1.0 * iz / fines[zone].N + fines[zone].z_start
-            - n_z / fines[zone].N - (i - n_z - 0.5)
+            + 1.0 * iz / fines[zone].N + fines[zone].z_start
+            - 1.0 * n_z / fines[zone].N - (i - n_z - 0.5)
         );
         if (fines[zone].x_start <= ix_global && ix_global <= fines[zone].x_end && fines[zone].z_start <= iz_global && iz_global <= fines[zone].z_end) {
             iz_local = (

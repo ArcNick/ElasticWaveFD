@@ -1,0 +1,14 @@
+.vscode
+*.bin
+bin/
+output/
+images/
+models/
+tools/__pycache__
+tools/brother.py
+tools/brother_trans.py
+tools/brother2.py
+tools/check.py
+tools/cyz.py
+tools/new_check.py
+tools/circle.py

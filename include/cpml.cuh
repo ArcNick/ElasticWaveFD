@@ -50,6 +50,7 @@ public:
 
     Cpml(const std::string &file);
     ~Cpml();
+    void memset_0(int lx, int lz);
 private:
     void load(const std::string &file);
     void mem_allocate(int lx, int lz);

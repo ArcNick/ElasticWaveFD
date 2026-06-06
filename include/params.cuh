@@ -3,15 +3,16 @@
 
 #include <string>
 #include <memory>
-
+#include <vector>
 #define GAIN 1e6
+
 
 class Params {
 public:
     float fpeak;  
     float dt;
     int nt;
-    int posx;
+    std::vector<int> posx;
     int posz;
     int snapshot;
 
@@ -28,7 +29,5 @@ private:
 extern __constant__ float freq;
 extern __constant__ float dt_d;
 extern __constant__ int nt_d;
-extern __constant__ int posx_d;
-extern __constant__ int posz_d;
 
 #endif
